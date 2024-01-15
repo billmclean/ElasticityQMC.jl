@@ -1,5 +1,5 @@
 import FFTW
-import Elasticity_QMC.InterpolatedCoefs: sin_sin_sum!, cos_sin_sum!,
+import ElasticityQMC.InterpolatedCoefs: sin_sin_sum!, cos_sin_sum!,
 					 sin_cos_sum!
 using Printf
 
@@ -34,7 +34,7 @@ function S₂(x₁::Float64, x₂::Float64, a::Matrix{Float64})
 end
 
 N₁, N₂ = 6, 4
-a = randn(N₁-1, N₂-1)
+a = tril(randn(N₁-1, N₂-1))
 n₁, n₂ = size(a)
 println("The matrix of coefficients.")
 display(a)

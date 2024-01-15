@@ -1,4 +1,4 @@
-using Elasticity_QMC
+using ElasticityQMC
 using Printf
 
 path = joinpath("..", "qmc_points", "SPOD_dim256.jld2")

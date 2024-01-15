@@ -1,8 +1,8 @@
-using Elasticity_QMC
-import Elasticity_QMC.InterpolatedCoefs: interpolated_λ!
+using ElasticityQMC
+import ElasticityQMC.InterpolatedCoefs: interpolated_λ!
 using LinearAlgebra
-using FinElt
-import FinElt.Elasticity: ∫∫f_dot_v!, ∫∫λ_div_u_div_v!, ∫∫2μ_εu_εv!
+using SimpleFiniteElements
+import SimpleFiniteElements.Elasticity: ∫∫f_dot_v!, ∫∫λ_div_u_div_v!, ∫∫2μ_εu_εv!
 using StaticArrays
 using PyPlot
 

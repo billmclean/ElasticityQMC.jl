@@ -31,6 +31,7 @@ end
 struct InterpolationStore 
     idx::Vector{IdxPair}
     α::Float64
+    M_α::Float64
     coef::Mat64   # Coefficients in the KL expansion.
     vals::Mat64   # Expansion values at the interpolation points.
     ∂₁coef::Mat64 # Coefficients and values for the partial derivatives
@@ -38,8 +39,6 @@ struct InterpolationStore
     ∂₂coef::Mat64
     ∂₂vals::Mat64
     plan::FFTW.r2rFFTWPlan
-    x₁::Vec64
-    x₂::Vec64
 end
 
 export IdxPair, PDEStore, InterpolationStore

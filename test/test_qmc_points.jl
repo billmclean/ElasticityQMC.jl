@@ -1,5 +1,5 @@
 using DelimitedFiles
-using Elasticity_QMC
+using ElasticityQMC
 using PyPlot
 
 path = joinpath("..", "qmc_points", "SPOD_dim256.jld2")

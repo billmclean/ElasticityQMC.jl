@@ -1,6 +1,6 @@
 using SimpleFiniteElements
-using Elasticity_QMC
-import Elasticity_QMC.Utils: SPOD_points
+using ElasticityQMC
+import ElasticityQMC.Utils: SPOD_points
 import StaticArrays: SA
 using Printf
 using JLD2
@@ -11,6 +11,7 @@ gmodel = GeometryModel(domain_path)
 hmax = 0.2
 conforming_elements = false
 solver = :pcg  # :direct or :pcg
+pcg_tol = 1e-8
 
 if conforming_elements
     mesh_order = 1
@@ -27,27 +28,44 @@ h_finest = max_elt_diameter(mesh[ngrids])
 h_string = @sprintf("%0.4f", h_finest)
 
 pstore = PDEStore(mesh; conforming=conforming_elements, solver=solver,
-                  pcg_tol=1e-10)
+                  pcg_tol=pcg_tol)
 num_free = 2 * pstore.dof[end].num_free
 
 α = 2.0
-n = 22 
+if exno in (2, 3)
+    n = 22 
+elseif exno == 4
+    n = 15
+else
+    error("Unknown example number exno = $exno.")
+end
+
 idx = double_indices(n)
-N₁ = 255
-N₂ = 255
 
-istore = InterpolationStore(idx, α, N₁, N₂)
+N_std = 256 # used for λ and μ
+N_hi  = 512 # used for ∇μ
+istore = InterpolationStore(idx, α, (N_std, N_std), (N_hi, N_hi))
 
-s = lastindex(idx)
+if exno == 2
+    s₁ = 0
+    s₂ = lastindex(idx)
+elseif exno == 3
+    s₁ = lastindex(idx)
+    s₂ = 0
+elseif exno == 4
+    s₁ = s₂ = lastindex(idx)
+end
 qmc_path = joinpath("..", "qmc_points", "SPOD_dim256.jld2")
-Nvals, pts = SPOD_points(s, qmc_path)
+Nvals, pts = SPOD_points(s₁+s₂, qmc_path)
+
 
 msg = """
 Example $exno.  Solving BVP with $element_description finite elements.
-Solver is $solver.
+Solver is $solver with tol = $pcg_tol.
 Employing $(Threads.nthreads()) threads.
-Using s = $s, α = $α.
-Interpolating random coefficient using $N₁ x $N₂ spatial grid.
+SPOD QMC points with s₁ = $s₁, s₂ = $s₂, α = $α.
+Using $N_std x $N_std grid to interpolate λ and μ.
+Using $N_hi x $N_hi grid to interpolate ∇μ if needed.
 Constructing a family of $ngrids FEM meshes by uniform refinement.
 Finest FEM mesh has $num_free degrees of freedom and h = $h_string."""
 
@@ -63,9 +81,9 @@ function create_tables(exno::Int64; Λ::Float64, nrows=4)
     Nref = Nvals[ref_row]
     f(x₁, x₂) = SA[1-x₂^2, 2x₁-20.0]
     if conforming_elements
-	refsoln_file = "reference_soln_ex$(exno)_$(Λ)_conforming.jld2"
+	refsoln_file = "reference_soln_ex$(exno)_$(Λ)_$(Nref)_conforming.jld2"
     else
-	refsoln_file = "reference_soln_ex$(exno)_$(Λ)_nonconforming.jld2"
+	refsoln_file = "reference_soln_ex$(exno)_$(Λ)_$(Nref)_nonconf.jld2"
     end
     if isfile(refsoln_file)
         @printf("Loading reference solution (N = %d) from %s.\n", 
@@ -73,24 +91,27 @@ function create_tables(exno::Int64; Λ::Float64, nrows=4)
         L_ref = load(refsoln_file, "L_ref")
         L_det = load(refsoln_file, "L_det")
         FEM_error = load(refsoln_file, "FEM_error")
+        pcg_its = load(refsoln_file, "pcg_its")
     else
         @printf("Computing reference solution (N = %d) ...", Nref)
         start = time()
         if exno == 2
-            z = pts[ref_row]
-            Φ, Φ_error, Φ_det, _ = simulations!(z, Λ, μ, ∇μ, f,
-                                                pstore, istore)
+	    Φ, Φ_error, Φ_det, _, pcg_its = simulations!(
+                pts[ref_row], Λ, μ, ∇μ, f, pstore, istore)
         elseif exno == 3
-            y = pts[ref_row]
 	    λ(x₁, x₂) = Λ * λ̂(x₁, x₂)
-            Φ, Φ_error, Φ_det, _ = simulations!(y, λ, f, pstore, istore)
+	    Φ, Φ_error, Φ_det, _, pcg_its = simulations!(
+                pts[ref_row], λ, f, pstore, istore)
+	elseif exno == 4
+	    Φ, Φ_error, Φ_det, _, pcg_its = simulations!(
+                pts[ref_row], Λ, f, pstore, istore)
         end
         elapsed_ref = time() - start
         @printf(" in %d seconds.\n", elapsed_ref)
         L_ref = sum(Φ) / Nref
         L_det = sum(Φ_det) / Nref
         FEM_error = sum(Φ_error) / Nref
-        jldsave(refsoln_file; L_ref, L_det, FEM_error)
+        jldsave(refsoln_file; L_ref, L_det, FEM_error, pcg_its)
     end
     @printf("FEM error of order %0.2e\n", FEM_error)
     @printf("\n%6s  %14s  %10s  %8s  %8s\n\n",
@@ -101,11 +122,11 @@ function create_tables(exno::Int64; Λ::Float64, nrows=4)
     for k = 1:nrows    
         start = time()
         if exno == 2
-            z = pts[k]
-            Φ, _, _, _ = simulations!(z, Λ, μ, ∇μ, f, pstore, istore)
+	    Φ, _, _, _ = simulations!(pts[k], Λ, μ, ∇μ, f, pstore, istore)
         elseif exno == 3
-            y = pts[k]
-            Φ, _, _, _ = simulations!(y, λ, f, pstore, istore)
+	    Φ, _, _, _ = simulations!(pts[k], λ, f, pstore, istore)
+	elseif exno == 4
+	    Φ, _, _, _ = simulations!(pts[k], Λ, f, pstore, istore)
         end
         elapsed[k] = time() - start
         L[k] = sum(Φ) / Nvals[k]
@@ -114,7 +135,7 @@ function create_tables(exno::Int64; Λ::Float64, nrows=4)
              @printf("%6d  %14.10f  %10.3e  %8s  %8.3f\n",
                      Nvals[k], L[k], L_error[k], "", elapsed[k])
         else
-            rate = log2(L_error[k-1]/L_error[k])
+	    rate = log2(abs(L_error[k-1]/L_error[k]))
             @printf("%6d  %14.10f  %10.3e  %8.3f  %8.3f\n",
                     Nvals[k], L[k], L_error[k], rate, elapsed[k])
         end
@@ -127,11 +148,12 @@ function create_tables(exno::Int64; Λ::Float64, nrows=4)
              @printf("%6d& %14.10f& %10.2e& %8s\\\\\n",
                      Nvals[k], L[k], L_error[k], "")
         else
-            rate = log2(L_error[k-1]/L_error[k])
+	    rate = log2(abs(L_error[k-1]/L_error[k]))
             @printf("%6d& %14.10f& %10.2e& %8.3f\\\\\n",
                     Nvals[k], L[k], L_error[k], rate)
         end
     end
+    return L_error, pcg_its
 end
 
 

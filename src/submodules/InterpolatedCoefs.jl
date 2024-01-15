@@ -3,9 +3,10 @@ module InterpolatedCoefs
 import ..InterpolationStore
 import  ..Vec64, ..AVec64, ..Mat64, ..IdxPair
 import FFTW: plan_r2r, RODFT00, REDFT00, r2rFFTWPlan
-import Interpolations: linear_interpolation
+import Interpolations: cubic_spline_interpolation
 import LinearAlgebra.BLAS: scal!
 import SpecialFunctions: zeta
+using ArgCheck
 
 function double_indices(n::Int64)
     idx = Vector{IdxPair}(undef, n*(n+1) ÷ 2)
@@ -27,51 +28,85 @@ macro unpack_InterpolationStore(q)
 end
 
 function InterpolationStore(idx::Vector{IdxPair}, α::Float64, 
-                            N₁::Int64, N₂::Int64)
+                            standard_resolution::IdxPair,
+			    high_resolution::IdxPair)
+    M_α = zeta(2α-1) - zeta(2α)
     k_max, l_max = 0, 0
     for j in eachindex(idx)
         k, l = idx[j]
         k_max = max(k, k_max)
         l_max = max(l, l_max)
     end
+    N₁, N₂ = standard_resolution
     if k_max > N₁÷2 || l_max > N₂÷2
         error("Interpolation grid is too coarse to resolve Fourier modes")
     end
-    coef = zeros(N₁-1, N₂-1)
-    vals = zeros(N₁+1, N₂+1)
-    ∂₁coef = zeros(N₁-1, N₂-1)
-    ∂₁vals = zeros(N₁+1, N₂+1)
-    ∂₂coef = zeros(N₁-1, N₂-1)
-    ∂₂vals = zeros(N₁+1, N₂+1)
+    coef = zeros(N₁-2, N₂-2)
+    vals = zeros(N₁, N₂)
+    N₁, N₂ = high_resolution
+    ∂₁coef = zeros(N₁-2, N₂-2)
+    ∂₁vals = zeros(N₁, N₂)
+    ∂₂coef = zeros(N₁-2, N₂-2)
+    ∂₂vals = zeros(N₁, N₂)
     plan = plan_r2r(coef, RODFT00)
-    x₁ = range(0, 1, length=N₁+1)
-    x₂ = range(0, 1, length=N₂+1)
-    return InterpolationStore(idx, α, coef, vals, ∂₁coef, ∂₁vals,
-			      ∂₂coef, ∂₂vals, plan, x₁, x₂)
+    return InterpolationStore(idx, α, M_α, coef, vals, ∂₁coef, ∂₁vals,
+			      ∂₂coef, ∂₂vals, plan)
 end
 
 function interpolated_λ!(z::AVec64, istore::InterpolationStore,
                             Λ=1.0)
     @unpack_InterpolationStore(istore)
-    KL_expansion!(vals, z, α, coef, idx, plan)
+    @argcheck length(idx) == size(z, 1)
+    KL_expansion!(z, istore)
     if Λ ≠ 1.0
         scal!(Λ, vals)
     end
-    return linear_interpolation((x₁, x₂), vals)
+    N₁, N₂ = size(vals)
+    x₁ = range(0, 1, length=N₁)
+    x₂ = range(0, 1, length=N₂)
+    return cubic_spline_interpolation((x₁, x₂), vals)
 end
 
 function interpolated_μ!(y::AVec64, istore::InterpolationStore, λ::Function)
     @unpack_InterpolationStore(istore)
-    M_α = KL_expansion!(vals, y, α, coef, idx, plan)
-    μ = linear_interpolation((x₁, x₂), vals)
-    n₁, n₂ = size(coef)
-    N₁, N₂ = n₁ + 1, n₂ + 1
+    @argcheck length(idx) == size(y, 1)
+    KL_expansion_with_gradient!(y, istore)
+    N₁, N₂ = size(vals)
+    x₁ = range(0, 1, length=N₁)
+    x₂ = range(0, 1, length=N₂)
+    μ = cubic_spline_interpolation((x₁, x₂), vals)
     for j in eachindex(x₂)
 	for i in eachindex(x₁)
 	    vals[i,j] += λ(x₁[i], x₂[j]) # now holds values for μ + λ
 	end
     end
-    μ_plus_λ = linear_interpolation((x₁, x₂), vals)
+    μ_plus_λ = cubic_spline_interpolation((x₁, x₂), vals)
+    N₁, N₂ = size(∂₁vals)
+    x₁ = range(0, 1, length=N₁)
+    x₂ = range(0, 1, length=N₂)
+    ∂₁μ = cubic_spline_interpolation((x₁, x₂), ∂₁vals)
+    ∂₂μ = cubic_spline_interpolation((x₁, x₂), ∂₂vals)
+
+    return μ, μ_plus_λ, ∂₁μ, ∂₂μ
+end
+
+function KL_expansion!(z::AVec64, istore::InterpolationStore)
+    @unpack_InterpolationStore(istore)
+    for j in eachindex(idx)
+        k, l = idx[j]
+        decay_factor = 1 / (k + l)^(2α)
+        coef[k,l] = z[j] * decay_factor
+    end
+    N₁, N₂ = size(vals)
+    sin_sin_sum!(vals, coef, plan)
+    for j = 1:N₂, i = 1:N₁
+        vals[i,j] = 1 + vals[i,j] / M_α
+    end
+end
+
+function KL_expansion_with_gradient!(y::AVec64, istore::InterpolationStore)
+    @unpack_InterpolationStore(istore)
+    KL_expansion!(y, istore)
     for j in eachindex(idx)
         k, l = idx[j]
         ∂₁coef[k,l] = k * π * coef[k,l] / M_α
@@ -79,26 +114,6 @@ function interpolated_μ!(y::AVec64, istore::InterpolationStore, λ::Function)
     end
     cos_sin_sum!(∂₁vals, ∂₁coef)
     sin_cos_sum!(∂₂vals, ∂₂coef)
-    ∂₁μ = linear_interpolation((x₁, x₂), ∂₁vals)
-    ∂₂μ = linear_interpolation((x₁, x₂), ∂₂vals)
-    return μ, μ_plus_λ, ∂₁μ, ∂₂μ
-end
-
-function KL_expansion!(vals::Mat64, y::AVec64, α::Float64, 
-                   coef::Mat64, idx::Vector{IdxPair}, plan::r2rFFTWPlan)
-    M_α = zeta(2α-1) - zeta(2α)
-    for j in eachindex(idx)
-        k, l = idx[j]
-        decay_factor = 1 / (k + l)^(2α)
-        coef[k,l] = y[j] * decay_factor
-    end
-    n₁, n₂ = size(coef)
-    N₁, N₂ = n₁ + 1, n₂ + 1
-    sin_sin_sum!(vals, coef, plan)
-    for j = 0:N₂, i = 0:N₁
-        vals[i+1,j+1] = 1 + vals[i+1,j+1] / M_α
-    end
-    return M_α
 end
 
 """

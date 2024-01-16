@@ -2,10 +2,15 @@ module ElasticityQMC
 
 import SimpleFiniteElements
 import StaticArrays: SA
-using OffsetArrays
+#using OffsetArrays
 import FFTW
 import SparseArrays
 
+export IdxPair, PDEStore, InterpolationStore
+export SPOD_points, pcg!, extrapolate!, extrapolate, check_rates
+export double_indices, interpolated_λ!, interpolated_μ!
+export integrand_init!, integrand!
+export simulations!
 
 const IdxPair = Tuple{Int64, Int64}
 const Vec64 = Vector{Float64}
@@ -41,18 +46,23 @@ struct InterpolationStore
     plan::FFTW.r2rFFTWPlan
 end
 
-export IdxPair, PDEStore, InterpolationStore
-
+function SPOD_points end
+function pcg! end
+function extrapolate! end
+function extrapolate end
+function check_rates end
 include("submodules/Utils.jl")
+
+function double_indices end
+function interpolated_λ! end
+function interpolated_μ! end
 include("submodules/InterpolatedCoefs.jl")
+
+function integrand_init! end
+function integrand! end
 include("submodules/PDE.jl")
+
+function simulations! end
 include("submodules/QMC.jl")
-
-import .Utils: SPOD_points, pcg!, extrapolate!, extrapolate, check_rates
-import .InterpolatedCoefs: double_indices
-import .PDE: integrand_init!, integrand!
-import .QMC: simulations!
-
-export SPOD_points, pcg!, double_indices, simulations!
 
 end # module Elasticity_QMC

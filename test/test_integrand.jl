@@ -1,5 +1,4 @@
-import ElasticityQMC: double_indices, PDEStore, InterpolationStore, 
-                       integrand_init!, integrand!
+using ElasticityQMC
 using SimpleFiniteElements
 import StaticArrays: SA
 using Printf

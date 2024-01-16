@@ -1,5 +1,4 @@
 using ElasticityQMC
-import ElasticityQMC.InterpolatedCoefs: interpolated_λ!
 using LinearAlgebra
 using SimpleFiniteElements
 import SimpleFiniteElements.Elasticity: ∫∫f_dot_v!, ∫∫λ_div_u_div_v!, ∫∫2μ_εu_εv!
@@ -34,7 +33,9 @@ idx = double_indices(n)
 s₁ = lastindex(idx)
 z = rand(s₁) .- 1/2
 N₁ = N₂ = 255
-istore = InterpolationStore(idx, α, N₁, N₂)
+standard_resolution = (256, 256)
+high_resolution = (512, 512)
+istore = InterpolationStore(idx, α, standard_resolution, high_resolution)
 λ_ = interpolated_λ!(z, istore, Λ)
 λ(x₁, x₂) = λ_(x₁, x₂)
 bilinear_forms = Dict("Omega" => [(∫∫λ_div_u_div_v!, λ),

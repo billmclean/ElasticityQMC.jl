@@ -5,6 +5,9 @@ using ArgCheck
 using LinearAlgebra
 using JLD2
 
+# Extending dummy functions from ElasticityQMC.
+import ..SPOD_points, ..pcg!, ..extrapolate!, ..extrapolate, ..check_rates
+
 function SPOD_points(s::Integer, path::String)
     D = load(path)
     if s > 256

@@ -1,12 +1,14 @@
 module InterpolatedCoefs
 
-import ..InterpolationStore
-import  ..Vec64, ..AVec64, ..Mat64, ..IdxPair
+import ..IdxPair, ..InterpolationStore, ..Vec64, ..AVec64, ..Mat64
 import FFTW: plan_r2r, RODFT00, REDFT00, r2rFFTWPlan
 import Interpolations: cubic_spline_interpolation
 import LinearAlgebra.BLAS: scal!
 import SpecialFunctions: zeta
 using ArgCheck
+
+# Extending dummy functions from ElasticityQMC.
+import ..double_indices, ..interpolated_λ!, ..interpolated_μ!
 
 function double_indices(n::Int64)
     idx = Vector{IdxPair}(undef, n*(n+1) ÷ 2)

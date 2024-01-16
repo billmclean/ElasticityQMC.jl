@@ -1,6 +1,6 @@
 import FFTW
-import ElasticityQMC.InterpolatedCoefs: sin_sin_sum!, cos_sin_sum!,
-					 sin_cos_sum!
+import LinearAlgebra: tril
+import ElasticityQMC.InterpolatedCoefs: sin_sin_sum!, cos_sin_sum!, sin_cos_sum!
 using Printf
 
 function S₀(x₁::Float64, x₂::Float64, a::Matrix{Float64})

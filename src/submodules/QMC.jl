@@ -1,8 +1,11 @@
 module QMC
 
-import ..Mat64, ..PDEStore, ..InterpolationStore
-import ..PDE: integrand_init!, integrand!
+import ..Mat64, ..PDEStore, ..InterpolationStore, 
+       ..integrand_init!, ..integrand!
 using LinearAlgebra
+
+# Extending dummy function from ElasticityQMC.
+import ..simulations!
 
 function simulations!(pts::Mat64, Λ::Float64, μ::Function, ∇μ::Function,
 	              f::Function, pstore::PDEStore, istore::InterpolationStore)

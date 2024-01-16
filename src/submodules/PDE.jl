@@ -4,11 +4,12 @@ using SimpleFiniteElements
 import SimpleFiniteElements.FEM: average_field
 import LinearAlgebra: BLAS, cholesky
 
-import ..PDEStore, ..InterpolationStore, 
-       ..Vec64, ..Mat64, ..AVec64, ..SA, ..SparseCholeskyFactor
-import ..InterpolatedCoefs: @unpack_InterpolationStore,
-			    interpolated_λ!, interpolated_μ!
-import ..Utils: extrapolate!, pcg!
+import ..PDEStore, ..InterpolationStore, ..extrapolate!, ..pcg!
+import ..Vec64, ..Mat64, ..AVec64, ..SA, ..SparseCholeskyFactor
+import ..interpolated_λ!, ..interpolated_μ!
+import ..InterpolatedCoefs: @unpack_InterpolationStore
+
+import ..integrand_init!, ..integrand!
 
 macro unpack_PDEStore(q)
     code =  Expr(:block, [ :($field = $q.$field)

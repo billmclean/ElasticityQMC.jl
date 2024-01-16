@@ -1,6 +1,5 @@
 using SimpleFiniteElements
 using ElasticityQMC
-import ElasticityQMC.Utils: SPOD_points
 import StaticArrays: SA
 using Printf
 using JLD2

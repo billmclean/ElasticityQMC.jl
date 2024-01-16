@@ -1,6 +1,5 @@
 using ElasticityQMC
-import ElasticityQMC.InterpolatedCoefs: interpolated_λ!, interpolated_μ!,
-                                         slow_λ, slow_μ, slow_∂₁μ, slow_∂₂μ
+import ElasticityQMC.InterpolatedCoefs: slow_λ, slow_μ, slow_∂₁μ, slow_∂₂μ
 import Printf: @printf
 using PyPlot
 

@@ -1,6 +1,6 @@
 using SimpleFiniteElements
 using ElasticityQMC
-import ElasticityQMC: integrand_init!, integrand!
+#import ElasticityQMC: integrand_init!, integrand!
 import StaticArrays: SA
 
 α = 2.0

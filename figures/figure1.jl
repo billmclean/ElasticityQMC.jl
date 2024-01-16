@@ -1,13 +1,10 @@
 using ElasticityQMC
-import ElasticityQMC.InterpolatedCoefs: interpolated_λ!
-import ElasticityQMC.Utils: SPOD_points
 using JLD2
 using PyPlot
 using Printf
 
-qmc = false
-N₁ = 256
-N₂ = 256
+standard_resolution = (256, 256)
+high_resolution     = (512, 512)
 n = 22
 α = 2.0
 Λ = 1.0
@@ -19,8 +16,9 @@ k = 4
 @printf("Using coefficient array with n = %d, α = %0.4f, Λ = %0.4f.\n", 
         n, α, Λ)
 @printf("%d points in %d dimensions\n", Nvals[k], s)
-@printf("Using %d x %d spatial grid\n", N₁, N₂)
-istore = InterpolationStore(idx, α, N₁, N₂)
+@printf("Using %d x %d spatial grid\n", 
+        standard_resolution[1], standard_resolution[1])
+istore = InterpolationStore(idx, α, standard_resolution, high_resolution)
 #col = rand(collect(1:Nvals[k]))
 col = 88
 @printf("Choosing z from column %d\n", col)

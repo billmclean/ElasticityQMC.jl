@@ -10,7 +10,7 @@ gmodel = GeometryModel(domain_path)
 hmax = 0.2
 conforming_elements = false
 solver = :pcg  # :direct or :pcg
-pcg_tol = 1e-8
+pcg_tol = 1e-10
 
 if conforming_elements
     mesh_order = 1

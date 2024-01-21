@@ -119,7 +119,7 @@ function KL_expansion_with_gradient!(y::AVec64, istore::InterpolationStore)
 end
 
 """
-    sin_sin_sum!(S, a)
+    sin_sin_sum!(S, a, plan)
 
 Computes the double sin sum
 

@@ -40,13 +40,13 @@ x₂ = range(0, 1, length=M₂)
 Threads.@threads for j in eachindex(x₂)
     for i in eachindex(x₂)
 	λ_error[i,j] = λ(x₁[i], x₂[j]) - slow_λ(x₁[i], x₂[j], z, α, Λ, idx) 
-	μ_error[i,j] =  μ(x₁[i], x₂[j]) - slow_μ(x₁[i], x₂[j], y, α, Λ, idx) 
+	μ_error[i,j] =  μ(x₁[i], x₂[j]) - slow_μ(x₁[i], x₂[j], y, α, idx) 
 	μ_plus_λ_error[i,j] = ( μ_plus_λ(x₁[i], x₂[j]) 
-		              - slow_μ(x₁[i], x₂[j], y, α, Λ, idx) - Λ ) 
+		              - slow_μ(x₁[i], x₂[j], y, α, idx) - Λ ) 
 	∂₁μ_error[i,j] = ∂₁μ(x₁[i], x₂[j]) - slow_∂₁μ(x₁[i], x₂[j], 
-						      y, α, Λ, idx) 
+						      y, α, idx) 
 	∂₂μ_error[i,j] = ∂₂μ(x₁[i], x₂[j]) - slow_∂₂μ(x₁[i], x₂[j], 
-						      y, α, Λ, idx) 
+						      y, α, idx) 
     end
 end
 

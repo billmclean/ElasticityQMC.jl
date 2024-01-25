@@ -256,7 +256,7 @@ function λ_μ_sums!(y::AVec64, z::AVec64, α::Float64, Λ::Float64,
     return M_α
 end
 
-function slow_λ(x₁::Float64, x₂::Float64, y::Vec64, 
+function slow_λ(x₁::Float64, x₂::Float64, y::AVec64, 
                 α::Float64, Λ::Float64, idx::Vector{IdxPair})
     N₁ = length(x₁) - 1
     N₂ = length(x₂) - 1
@@ -270,8 +270,8 @@ function slow_λ(x₁::Float64, x₂::Float64, y::Vec64,
     return Λ * ( 1 + Σ / M_α )
 end
 
-function slow_μ(x₁::Float64, x₂::Float64, z::Vec64, 
-                α::Float64, Λ::Float64, idx::Vector{IdxPair})
+function slow_μ(x₁::Float64, x₂::Float64, z::AVec64, 
+                α::Float64, idx::Vector{IdxPair})
     N₁ = length(x₁) - 1
     N₂ = length(x₂) - 1
     M_α = zeta(2α-1) - zeta(2α)
@@ -284,8 +284,8 @@ function slow_μ(x₁::Float64, x₂::Float64, z::Vec64,
     return  1 + Σ / M_α
 end
 
-function slow_∂₁μ(x₁::Float64, x₂::Float64, z::Vec64, 
-                  α::Float64, Λ::Float64, idx::Vector{IdxPair})
+function slow_∂₁μ(x₁::Float64, x₂::Float64, z::AVec64, 
+                  α::Float64, idx::Vector{IdxPair})
     N₁ = length(x₁) - 1
     N₂ = length(x₂) - 1
     M_α = zeta(2α-1) - zeta(2α)
@@ -298,8 +298,8 @@ function slow_∂₁μ(x₁::Float64, x₂::Float64, z::Vec64,
     return  Σ / M_α
 end
 
-function slow_∂₂μ(x₁::Float64, x₂::Float64, z::Vec64, 
-                  α::Float64, Λ::Float64, idx::Vector{IdxPair})
+function slow_∂₂μ(x₁::Float64, x₂::Float64, z::AVec64, 
+                  α::Float64, idx::Vector{IdxPair})
     N₁ = length(x₁) - 1
     N₂ = length(x₂) - 1
     M_α = zeta(2α-1) - zeta(2α)

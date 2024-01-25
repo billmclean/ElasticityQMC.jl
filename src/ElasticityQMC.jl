@@ -9,8 +9,8 @@ import SparseArrays
 export IdxPair, PDEStore, InterpolationStore
 export SPOD_points, pcg!, extrapolate!, extrapolate, check_rates
 export double_indices, interpolated_λ!, interpolated_μ!
-export integrand_init!, integrand!
-export simulations!
+export integrand_init!, integrand!, slow_integrand!
+export simulations!, slow_simulations!
 
 const IdxPair = Tuple{Int64, Int64}
 const Vec64 = Vector{Float64}
@@ -60,9 +60,11 @@ include("submodules/InterpolatedCoefs.jl")
 
 function integrand_init! end
 function integrand! end
+function slow_integrand! end
 include("submodules/PDE.jl")
 
 function simulations! end
+function slow_simulations! end
 include("submodules/QMC.jl")
 
 end # module Elasticity_QMC

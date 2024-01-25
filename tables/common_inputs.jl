@@ -35,6 +35,7 @@ if exno in (2, 3)
     n = 22 
 elseif exno == 4
     n = 15
+    use_fft = false 
 else
     error("Unknown example number exno = $exno.")
 end
@@ -57,18 +58,28 @@ end
 qmc_path = joinpath("..", "qmc_points", "SPOD_dim256.jld2")
 Nvals, pts = SPOD_points(s₁+s₂, qmc_path)
 
-
-msg = """
+msg1 = """
 Example $exno.  Solving BVP with $element_description finite elements.
 Solver is $solver with tol = $pcg_tol.
 Employing $(Threads.nthreads()) threads.
 SPOD QMC points with s₁ = $s₁, s₂ = $s₂, α = $α.
-Using $N_std x $N_std grid to interpolate λ and μ.
-Using $N_hi x $N_hi grid to interpolate ∇μ if needed.
 Constructing a family of $ngrids FEM meshes by uniform refinement.
 Finest FEM mesh has $num_free degrees of freedom and h = $h_string."""
 
-println(msg)
+println(msg1)
+
+if exno == 4 && !use_fft
+    msg2 = """
+    Evaluating λ and μ directly (no FFT).
+    """
+else
+    msg2 = """
+    Using $N_std x $N_std grid to interpolate λ and μ.
+    Using $N_hi x $N_hi grid to interpolate ∇μ if needed.
+    """
+end
+
+println(msg2)
 
 λ̂(x₁, x₂) = 1 + 0.5 * sinpi(2x₁) 
 μ(x₁, x₂) = 1 + x₁ + x₂
@@ -102,8 +113,13 @@ function create_tables(exno::Int64; Λ::Float64, nrows=4)
 	    Φ, Φ_error, Φ_det, _, pcg_its = simulations!(
                 pts[ref_row], λ, f, pstore, istore)
 	elseif exno == 4
-	    Φ, Φ_error, Φ_det, _, pcg_its = simulations!(
-                pts[ref_row], Λ, f, pstore, istore)
+	    if use_fft
+	        Φ, Φ_error, Φ_det, _, pcg_its = simulations!(
+                    pts[ref_row], Λ, f, pstore, istore)
+	    else
+	        Φ, Φ_error, Φ_det, _, pcg_its = slow_simulations!(
+                    pts[ref_row], α, Λ, idx, f, pstore)
+	    end
         end
         elapsed_ref = time() - start
         @printf(" in %d seconds.\n", elapsed_ref)
@@ -125,7 +141,11 @@ function create_tables(exno::Int64; Λ::Float64, nrows=4)
         elseif exno == 3
 	    Φ, _, _, _ = simulations!(pts[k], λ, f, pstore, istore)
 	elseif exno == 4
-	    Φ, _, _, _ = simulations!(pts[k], Λ, f, pstore, istore)
+	    if use_fft
+	        Φ, _, _, _ = simulations!(pts[k], Λ, f, pstore, istore)
+	    else
+	        Φ, _, _, _ = slow_simulations!(pts[k], α, Λ, idx, f, pstore)
+	    end
         end
         elapsed[k] = time() - start
         L[k] = sum(Φ) / Nvals[k]

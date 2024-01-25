@@ -92,10 +92,10 @@ start = time()
 for j in eachindex(x₂)
     for i in eachindex(x₂)
 	λ_val[i,j] = slow_λ(x₁[i], x₂[j], z, α, Λ, idx) 
-	μ_val[i,j] = slow_μ(x₁[i], x₂[j], y, α, Λ, idx) 
-	μ_plus_λ_val[i,j] = slow_μ(x₁[i], x₂[j], y, α, Λ, idx) - Λ 
-	∂₁μ_val[i,j] = slow_∂₁μ(x₁[i], x₂[j], y, α, Λ, idx) 
-	∂₂μ_val[i,j] = slow_∂₂μ(x₁[i], x₂[j], y, α, Λ, idx) 
+	μ_val[i,j] = slow_μ(x₁[i], x₂[j], y, α, idx) 
+	μ_plus_λ_val[i,j] = slow_μ(x₁[i], x₂[j], y, α, idx) - Λ 
+	∂₁μ_val[i,j] = slow_∂₁μ(x₁[i], x₂[j], y, α, idx) 
+	∂₂μ_val[i,j] = slow_∂₂μ(x₁[i], x₂[j], y, α, idx) 
     end
 end
 elapsed = time() - start

@@ -5,11 +5,12 @@ import SimpleFiniteElements.FEM: average_field
 import LinearAlgebra: BLAS, cholesky
 
 import ..PDEStore, ..InterpolationStore, ..extrapolate!, ..pcg!
-import ..Vec64, ..Mat64, ..AVec64, ..SA, ..SparseCholeskyFactor
+import ..Vec64, ..Mat64, ..AVec64, ..SA, ..SparseCholeskyFactor, ..IdxPair
 import ..interpolated_λ!, ..interpolated_μ!
-import ..InterpolatedCoefs: @unpack_InterpolationStore
+import ..InterpolatedCoefs: @unpack_InterpolationStore, slow_λ, slow_μ,
+			    slow_∂₁μ, slow_∂₂μ
 
-import ..integrand_init!, ..integrand!
+import ..integrand_init!, ..integrand!, ..slow_integrand!
 
 macro unpack_PDEStore(q)
     code =  Expr(:block, [ :($field = $q.$field)
@@ -188,6 +189,33 @@ function integrand!(y::AVec64, z::AVec64, Λ::Float64,
         El = SimpleFiniteElements.NonConformingElasticity
 	μ_plus_λ(x₁, x₂) = λ(x₁, x₂) + μ(x₁, x₂)
         μ_plus_λ = (x₁, x₂) -> μ_plus_λ_(x₁, x₂)
+	∇μ(x₁, x₂) = SA[ ∂₁μ(x₁, x₂), ∂₂μ(x₁, x₂) ]
+        bilinear_forms = Dict("Omega" => [(El.∫∫a_div_u_div_v!, μ_plus_λ),
+                                          (El.∫∫μ_∇u_colon_∇v!, μ),
+                                          (El.correction!, ∇μ)])
+    end        
+    random_solve!(pstore, bilinear_forms)
+end
+
+"""
+    slow_integrand!(y, z, α, Λ, idx, pstore)
+
+Computes `λ` and `μ` directly, without using FFT and interpolation.
+"""
+function slow_integrand!(y::AVec64, z::AVec64, α::Float64, Λ::Float64, 
+	                 idx::Vector{IdxPair}, pstore::PDEStore)
+    @unpack_PDEStore(pstore)
+    λ(x₁, x₂) = slow_λ(x₁, x₂, y, α, Λ, idx)
+    μ(x₁, x₂) = slow_μ(x₁, x₂, z, α, idx)
+    if conforming
+        El = SimpleFiniteElements.Elasticity
+        bilinear_forms = Dict("Omega" => [(El.∫∫λ_div_u_div_v!, λ),
+                                          (El.∫∫2μ_εu_εv!, μ)])
+    else
+        El = SimpleFiniteElements.NonConformingElasticity
+	μ_plus_λ(x₁, x₂) = λ(x₁, x₂) + μ(x₁, x₂)
+	∂₁μ(x₁, x₂) = slow_∂₁μ(x₁, x₂, z, α, idx)
+	∂₂μ(x₁, x₂) = slow_∂₂μ(x₁, x₂, z, α, idx)
 	∇μ(x₁, x₂) = SA[ ∂₁μ(x₁, x₂), ∂₂μ(x₁, x₂) ]
         bilinear_forms = Dict("Omega" => [(El.∫∫a_div_u_div_v!, μ_plus_λ),
                                           (El.∫∫μ_∇u_colon_∇v!, μ),

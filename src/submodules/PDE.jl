@@ -7,16 +7,9 @@ import LinearAlgebra: BLAS, cholesky
 import ..PDEStore, ..InterpolationStore, ..extrapolate!, ..pcg!
 import ..Vec64, ..Mat64, ..AVec64, ..SA, ..SparseCholeskyFactor, ..IdxPair
 import ..interpolated_λ!, ..interpolated_μ!
-import ..InterpolatedCoefs: @unpack_InterpolationStore, slow_λ, slow_μ,
-			    slow_∂₁μ, slow_∂₂μ
+import ..InterpolatedCoefs: slow_λ, slow_μ, slow_∂₁μ, slow_∂₂μ
 
 import ..integrand_init!, ..integrand!, ..slow_integrand!
-
-macro unpack_PDEStore(q)
-    code =  Expr(:block, [ :($field = $q.$field)
-                          for field in fieldnames(PDEStore) ]...)
-    esc(code)
-end
 
 function PDEStore(mesh::Vector{FEMesh};
         conforming::Bool, solver, pcg_tol=0.0, pcg_maxits=100)
@@ -109,7 +102,8 @@ function integrand_init!(pstore::PDEStore, Λ::Float64, f::Function)
 end
 function deterministic_solve!(pstore::PDEStore, bilinear_forms::Dict,
                               linear_funcs::Dict)
-    @unpack_PDEStore(pstore)
+
+    (; dof, b_free, u_free_det, P, wkspace, u_free, u2h) = pstore
     ngrids = lastindex(dof)
     Φ_det = Vec64(undef, ngrids)
     # The vector u_free_det is the solution of the deterministic problem, i.e.,
@@ -137,7 +131,7 @@ end
 
 function integrand!(z::AVec64, Λ::Float64, μ::Function, ∇μ::Function,
 	            pstore::PDEStore, istore::InterpolationStore)
-    @unpack_PDEStore(pstore)
+    conforming = pstore.conforming
     λ_ = interpolated_λ!(z, istore, Λ)
     λ = (x₁, x₂) -> λ_(x₁, x₂)
     if conforming
@@ -156,7 +150,7 @@ end
 
 function integrand!(y::AVec64, λ::Function, 
 	            pstore::PDEStore, istore::InterpolationStore)
-    @unpack_PDEStore(pstore)
+    conforming = pstore.conforming
     μ_, μ_plus_λ_, ∂₁μ, ∂₂μ = interpolated_μ!(y, istore, λ)
     μ = (x₁, x₂) -> μ_(x₁, x₂)
     if conforming
@@ -176,7 +170,7 @@ end
 
 function integrand!(y::AVec64, z::AVec64, Λ::Float64, 
 	            pstore::PDEStore, istore::InterpolationStore)
-    @unpack_PDEStore(pstore)
+    conforming = pstore.conforming
     λ_ = interpolated_λ!(z, istore, Λ)
     λ = (x₁, x₂) -> λ_(x₁, x₂)
     μ_, μ_plus_λ_, ∂₁μ, ∂₂μ = interpolated_μ!(y, istore, λ)
@@ -204,7 +198,7 @@ Computes `λ` and `μ` directly, without using FFT and interpolation.
 """
 function slow_integrand!(y::AVec64, z::AVec64, α::Float64, Λ::Float64, 
 	                 idx::Vector{IdxPair}, pstore::PDEStore)
-    @unpack_PDEStore(pstore)
+    conforming = pstore.conforming
     λ(x₁, x₂) = slow_λ(x₁, x₂, y, α, Λ, idx)
     μ(x₁, x₂) = slow_μ(x₁, x₂, z, α, idx)
     if conforming
@@ -225,7 +219,8 @@ function slow_integrand!(y::AVec64, z::AVec64, α::Float64, Λ::Float64,
 end
 
 function random_solve!(pstore::PDEStore, bilinear_forms::Dict)
-    @unpack_PDEStore(pstore)
+    (; dof, solver, b_free, u_free_det, P, wkspace, u_free, u2h, 
+         pcg_tol, pcg_maxits) = pstore
     ngrids = lastindex(dof)
     Φ = Vector{Float64}(undef, ngrids)
     num_its = zeros(Int64, ngrids)

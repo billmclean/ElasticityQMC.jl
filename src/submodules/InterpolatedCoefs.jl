@@ -23,12 +23,6 @@ function double_indices(n::Int64)
     return idx
 end
 
-macro unpack_InterpolationStore(q)
-    code =  Expr(:block, [ :($field = $q.$field)
-                          for field in fieldnames(InterpolationStore) ]...)
-    esc(code)
-end
-
 function InterpolationStore(idx::Vector{IdxPair}, α::Float64, 
                             standard_resolution::IdxPair,
 			    high_resolution::IdxPair)
@@ -57,7 +51,7 @@ end
 
 function interpolated_λ!(z::AVec64, istore::InterpolationStore,
                             Λ=1.0)
-    @unpack_InterpolationStore(istore)
+    (; idx, vals) = istore
     @argcheck length(idx) == size(z, 1)
     KL_expansion!(z, istore)
     if Λ ≠ 1.0
@@ -70,7 +64,7 @@ function interpolated_λ!(z::AVec64, istore::InterpolationStore,
 end
 
 function interpolated_μ!(y::AVec64, istore::InterpolationStore, λ::Function)
-    @unpack_InterpolationStore(istore)
+    (; idx, vals, ∂₁vals, ∂₂vals) = istore
     @argcheck length(idx) == size(y, 1)
     KL_expansion_with_gradient!(y, istore)
     N₁, N₂ = size(vals)
@@ -93,7 +87,7 @@ function interpolated_μ!(y::AVec64, istore::InterpolationStore, λ::Function)
 end
 
 function KL_expansion!(z::AVec64, istore::InterpolationStore)
-    @unpack_InterpolationStore(istore)
+    (;idx, α, M_α, coef, vals, plan) = istore
     for j in eachindex(idx)
         k, l = idx[j]
         decay_factor = 1 / (k + l)^(2α)
@@ -107,7 +101,7 @@ function KL_expansion!(z::AVec64, istore::InterpolationStore)
 end
 
 function KL_expansion_with_gradient!(y::AVec64, istore::InterpolationStore)
-    @unpack_InterpolationStore(istore)
+    (; idx, M_α, coef, ∂₁coef, ∂₁vals, ∂₂coef, ∂₂vals) = istore
     KL_expansion!(y, istore)
     for j in eachindex(idx)
         k, l = idx[j]

@@ -6,7 +6,7 @@ using Printf
 path = joinpath("..", "spatial_domains", "unit_square.geo")
 gmodel = GeometryModel(path)
 hmax = 0.2
-conforming_elements = true
+conforming_elements = false
 solver = :pcg  # :direct or :pcg
 
 if conforming_elements

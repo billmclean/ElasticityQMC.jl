@@ -16,7 +16,7 @@ function simulations!(pts::Mat64, Λ::Float64, μ::Function, ∇μ::Function,
     chunks = collect(Iterators.partition(1:N, N ÷ Threads.nthreads()))
     Φ = zeros(N)
     Φ_error = zeros(N)
-    pcg_its = zeros(length(dof), N)
+    pcg_its = zeros(length(pstore.dof), N)
     Threads.@threads for chunk in chunks
 #    for chunk in chunks
 	pstore_local = deepcopy(pstore)
@@ -41,7 +41,7 @@ function simulations!(pts::Mat64, λ::Function, f::Function,
     chunks = collect(Iterators.partition(1:N, N ÷ Threads.nthreads()))
     Φ = zeros(N)
     Φ_error = zeros(N)
-    pcg_its = zeros(length(dof), N)
+    pcg_its = zeros(length(pstore.dof), N)
     Threads.@threads for chunk in chunks
 #    for chunk in chunks
 	pstore_local = deepcopy(pstore)

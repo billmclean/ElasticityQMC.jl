@@ -13,3 +13,7 @@ SimpleFiniteElements = "125632e7-bef4-4648-bc1f-71b5efcf8068"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+
+[compat]
+JLD2 = "0.5.8"
+SimpleFiniteElements = "0.1.2"

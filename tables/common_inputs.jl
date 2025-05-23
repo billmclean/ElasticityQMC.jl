@@ -31,9 +31,9 @@ pstore = PDEStore(mesh; conforming=conforming_elements, solver=solver,
 num_free = 2 * pstore.dof[end].num_free
 
 α = 2.0
-if exno in (2, 3)
+if exno == 2
     n = 22 
-elseif exno == 4
+elseif exno == 3
     n = 15
     use_fft = false 
 else
@@ -42,17 +42,14 @@ end
 
 idx = double_indices(n)
 
-N_std = 256 # used for λ and μ
+N_std = 256 # used for K and μ
 N_hi  = 512 # used for ∇μ
 istore = InterpolationStore(idx, α, (N_std, N_std), (N_hi, N_hi))
 
-if exno == 2
+if exno == 2 # μ deterministic, K random
     s₁ = 0
     s₂ = lastindex(idx)
-elseif exno == 3
-    s₁ = lastindex(idx)
-    s₂ = 0
-elseif exno == 4
+elseif exno == 3 # both μ and K random
     s₁ = s₂ = lastindex(idx)
 end
 qmc_path = joinpath("..", "qmc_points", "SPOD_dim256.jld2")
@@ -70,18 +67,17 @@ println(msg1)
 
 if exno == 4 && !use_fft
     msg2 = """
-    Evaluating λ and μ directly (no FFT).
+    Evaluating K and μ directly (no FFT).
     """
 else
     msg2 = """
-    Using $N_std x $N_std grid to interpolate λ and μ.
+    Using $N_std x $N_std grid to interpolate K and μ.
     Using $N_hi x $N_hi grid to interpolate ∇μ if needed.
     """
 end
 
 println(msg2)
 
-λ̂(x₁, x₂) = 1 + 0.5 * sinpi(2x₁) 
 μ(x₁, x₂) = 1 + x₁ + x₂
 ∇μ(x₁, x₂) = SA[1.0, 1.0]
 
@@ -108,11 +104,7 @@ function create_tables(exno::Int64; Λ::Float64, nrows=4)
         if exno == 2
 	    Φ, Φ_error, Φ_det, _, pcg_its = simulations!(
                 pts[ref_row], Λ, μ, ∇μ, f, pstore, istore)
-        elseif exno == 3
-	    λ(x₁, x₂) = Λ * λ̂(x₁, x₂)
-	    Φ, Φ_error, Φ_det, _, pcg_its = simulations!(
-                pts[ref_row], λ, f, pstore, istore)
-	elseif exno == 4
+	elseif exno == 3
 	    if use_fft
 	        Φ, Φ_error, Φ_det, _, pcg_its = simulations!(
                     pts[ref_row], Λ, f, pstore, istore)
@@ -138,9 +130,7 @@ function create_tables(exno::Int64; Λ::Float64, nrows=4)
         start = time()
         if exno == 2
 	    Φ, _, _, _ = simulations!(pts[k], Λ, μ, ∇μ, f, pstore, istore)
-        elseif exno == 3
-	    Φ, _, _, _ = simulations!(pts[k], λ, f, pstore, istore)
-	elseif exno == 4
+	elseif exno == 3
 	    if use_fft
 	        Φ, _, _, _ = simulations!(pts[k], Λ, f, pstore, istore)
 	    else

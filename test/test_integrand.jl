@@ -36,10 +36,9 @@ Solving BVP with $element_description finite elements.
 Solver is $solver, tol = $pcg_tol.
 Finest mesh has h = $h_string.
 Using s = $s with α = $α, Λ = $Λ.
-Interpolating λ and μ using $N_std x $N_std spatial grid."""
+Interpolating K and μ using $N_std x $N_std spatial grid."""
 println(msg)
 
-λ(x₁, x₂) = Λ * ( 1 + 0.5 * sinpi(2x₁) )
 μ(x₁, x₂) = 1 + x₁ + x₂
 ∇μ(x₁, x₂) = SA[1.0, 1.0]
 f(x, y) = SA[1-y^2, 2x-20.0]
@@ -50,11 +49,15 @@ istore = InterpolationStore(idx, α, (N_std, N_std), (N_hi, N_hi))
 integrand_init!(pstore, Λ, μ, ∇μ, f)
 z = rand(s) .- 1/2
 Φ, Φ_error, num_its = integrand!(z, Λ, μ, ∇μ, pstore, istore)
+@printf("\nRandom K, determinisitic μ:\n")
+@printf("\tΦ = %0.6f, Φ_error = %0.2e, num_its = %d, %d, %d\n",
+        Φ, Φ_error, num_its[1], num_its[2], num_its[3])
 
-integrand_init!(pstore, λ, f)
 y = rand(s) .- 1/2
-Φ, Φ_error, num_its = integrand!(y, λ, pstore, istore)
 
 integrand_init!(pstore, Λ, f)
 Φ, Φ_error, num_its = integrand!(y, z, Λ, pstore, istore)
+@printf("\nRandom K and μ:\n")
+@printf("\tΦ = %0.6f, Φ_error = %0.2e, num_its = %d, %d, %d\n",
+        Φ, Φ_error, num_its[1], num_its[2], num_its[3])
 

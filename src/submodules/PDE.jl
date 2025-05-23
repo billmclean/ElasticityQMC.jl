@@ -6,8 +6,8 @@ import LinearAlgebra: BLAS, cholesky
 
 import ..PDEStore, ..InterpolationStore, ..extrapolate!, ..pcg!
 import ..Vec64, ..Mat64, ..AVec64, ..SA, ..SparseCholeskyFactor, ..IdxPair
-import ..interpolated_λ!, ..interpolated_μ!
-import ..InterpolatedCoefs: slow_λ, slow_μ, slow_∂₁μ, slow_∂₂μ
+import ..interpolated_K!, ..interpolated_μ!
+import ..InterpolatedCoefs: slow_K, slow_μ, slow_∂₁μ, slow_∂₂μ
 
 import ..integrand_init!, ..integrand!, ..slow_integrand!
 
@@ -39,10 +39,11 @@ function PDEStore(mesh::Vector{FEMesh};
                     P, wkspace, u_free, u2h, pcg_tol, pcg_maxits)
 end
 
+
 """
     integrand_init!(pstore, Λ, μ, ∇μ, f)
 
-Prepares `pstore` in the case when `λ` is random and `μ` is deterministic.
+Prepares `pstore` in the case when `K` is random and `μ` is deterministic.
 """
 function integrand_init!(pstore::PDEStore, Λ::Float64, μ::Function,
 	                 ∇μ::Function, f::Function)
@@ -52,8 +53,8 @@ function integrand_init!(pstore::PDEStore, Λ::Float64, μ::Function,
                                           (El.∫∫2μ_εu_εv!, μ)])
     else
         El = SimpleFiniteElements.NonConformingElasticity
-	μ_plus_λ(x₁, x₂) = μ(x₁, x₂) + Λ
-        bilinear_forms = Dict("Omega" => [(El.∫∫a_div_u_div_v!, μ_plus_λ),
+	K = Λ
+        bilinear_forms = Dict("Omega" => [(El.∫∫a_div_u_div_v!, K),
                                           (El.∫∫μ_∇u_colon_∇v!, μ),
                                           (El.correction!, ∇μ)])
     end
@@ -100,6 +101,7 @@ function integrand_init!(pstore::PDEStore, Λ::Float64, f::Function)
     linear_funcs = Dict("Omega" => (El.∫∫f_dot_v!, f))
     deterministic_solve!(pstore, bilinear_forms, linear_funcs)
 end
+
 function deterministic_solve!(pstore::PDEStore, bilinear_forms::Dict,
                               linear_funcs::Dict)
 
@@ -132,36 +134,35 @@ end
 function integrand!(z::AVec64, Λ::Float64, μ::Function, ∇μ::Function,
 	            pstore::PDEStore, istore::InterpolationStore)
     conforming = pstore.conforming
-    λ_ = interpolated_λ!(z, istore, Λ)
-    λ = (x₁, x₂) -> λ_(x₁, x₂)
+    K_ = interpolated_K!(z, istore, Λ)
+    K = (x₁, x₂) -> K_(x₁, x₂)
     if conforming
         El = SimpleFiniteElements.Elasticity
+        λ(x₁, x₂) = K(x₁, x₂) - μ(x₁, x₂)
         bilinear_forms = Dict("Omega" => [(El.∫∫λ_div_u_div_v!, λ),
                                           (El.∫∫2μ_εu_εv!, μ)])
     else
-	μ_plus_λ(x₁, x₂) = λ(x₁, x₂) + μ(x₁, x₂)
         El = SimpleFiniteElements.NonConformingElasticity
-        bilinear_forms = Dict("Omega" => [(El.∫∫a_div_u_div_v!, μ_plus_λ),
+        bilinear_forms = Dict("Omega" => [(El.∫∫a_div_u_div_v!, K),
                                           (El.∫∫μ_∇u_colon_∇v!, μ),
                                           (El.correction!, ∇μ)])
     end        
     random_solve!(pstore, bilinear_forms)
 end
 
-function integrand!(y::AVec64, λ::Function, 
+function integrand!(y::AVec64, K::Function, 
 	            pstore::PDEStore, istore::InterpolationStore)
     conforming = pstore.conforming
-    μ_, μ_plus_λ_, ∂₁μ, ∂₂μ = interpolated_μ!(y, istore, λ)
+    μ_, ∂₁μ, ∂₂μ = interpolated_μ!(y, istore, λ)
     μ = (x₁, x₂) -> μ_(x₁, x₂)
     if conforming
+        λ(x₁, x₂) = K(x₁, x₂) - μ(x₁, x₂)
         El = SimpleFiniteElements.Elasticity
         bilinear_forms = Dict("Omega" => [(El.∫∫λ_div_u_div_v!, λ),
                                           (El.∫∫2μ_εu_εv!, μ)])
     else
-        El = SimpleFiniteElements.NonConformingElasticity
-        μ_plus_λ = (x₁, x₂) -> μ_plus_λ_(x₁, x₂)
 	∇μ(x₁, x₂) = SA[ ∂₁μ(x₁, x₂), ∂₂μ(x₁, x₂) ]
-        bilinear_forms = Dict("Omega" => [(El.∫∫a_div_u_div_v!, μ_plus_λ),
+        bilinear_forms = Dict("Omega" => [(El.∫∫a_div_u_div_v!, K),
                                           (El.∫∫μ_∇u_colon_∇v!, μ),
                                           (El.correction!, ∇μ)])
     end        
@@ -171,20 +172,19 @@ end
 function integrand!(y::AVec64, z::AVec64, Λ::Float64, 
 	            pstore::PDEStore, istore::InterpolationStore)
     conforming = pstore.conforming
-    λ_ = interpolated_λ!(z, istore, Λ)
-    λ = (x₁, x₂) -> λ_(x₁, x₂)
-    μ_, μ_plus_λ_, ∂₁μ, ∂₂μ = interpolated_μ!(y, istore, λ)
+    K_ = interpolated_K!(z, istore, Λ)
+    K = (x₁, x₂) -> K_(x₁, x₂)
+    μ_, ∂₁μ, ∂₂μ = interpolated_μ!(y, istore)
     μ = (x₁, x₂) -> μ_(x₁, x₂)
     if conforming
+        λ(x₁, x₂) = K(x₁, x₂) - μ(x₁, x₂)
         El = SimpleFiniteElements.Elasticity
         bilinear_forms = Dict("Omega" => [(El.∫∫λ_div_u_div_v!, λ),
                                           (El.∫∫2μ_εu_εv!, μ)])
     else
         El = SimpleFiniteElements.NonConformingElasticity
-	μ_plus_λ(x₁, x₂) = λ(x₁, x₂) + μ(x₁, x₂)
-        μ_plus_λ = (x₁, x₂) -> μ_plus_λ_(x₁, x₂)
 	∇μ(x₁, x₂) = SA[ ∂₁μ(x₁, x₂), ∂₂μ(x₁, x₂) ]
-        bilinear_forms = Dict("Omega" => [(El.∫∫a_div_u_div_v!, μ_plus_λ),
+        bilinear_forms = Dict("Omega" => [(El.∫∫a_div_u_div_v!, K),
                                           (El.∫∫μ_∇u_colon_∇v!, μ),
                                           (El.correction!, ∇μ)])
     end        
@@ -194,24 +194,24 @@ end
 """
     slow_integrand!(y, z, α, Λ, idx, pstore)
 
-Computes `λ` and `μ` directly, without using FFT and interpolation.
+Computes `K` and `μ` directly, without using FFT and interpolation.
 """
 function slow_integrand!(y::AVec64, z::AVec64, α::Float64, Λ::Float64, 
 	                 idx::Vector{IdxPair}, pstore::PDEStore)
     conforming = pstore.conforming
-    λ(x₁, x₂) = slow_λ(x₁, x₂, y, α, Λ, idx)
+    K(x₁, x₂) = slow_K(x₁, x₂, y, α, Λ, idx)
     μ(x₁, x₂) = slow_μ(x₁, x₂, z, α, idx)
     if conforming
         El = SimpleFiniteElements.Elasticity
+        λ(x₁, x₂) = K(x₁, x₂) - μ(x₁, x₂)
         bilinear_forms = Dict("Omega" => [(El.∫∫λ_div_u_div_v!, λ),
                                           (El.∫∫2μ_εu_εv!, μ)])
     else
         El = SimpleFiniteElements.NonConformingElasticity
-	μ_plus_λ(x₁, x₂) = λ(x₁, x₂) + μ(x₁, x₂)
 	∂₁μ(x₁, x₂) = slow_∂₁μ(x₁, x₂, z, α, idx)
 	∂₂μ(x₁, x₂) = slow_∂₂μ(x₁, x₂, z, α, idx)
 	∇μ(x₁, x₂) = SA[ ∂₁μ(x₁, x₂), ∂₂μ(x₁, x₂) ]
-        bilinear_forms = Dict("Omega" => [(El.∫∫a_div_u_div_v!, μ_plus_λ),
+        bilinear_forms = Dict("Omega" => [(El.∫∫a_div_u_div_v!, K),
                                           (El.∫∫μ_∇u_colon_∇v!, μ),
                                           (El.correction!, ∇μ)])
     end        

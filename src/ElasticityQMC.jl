@@ -8,7 +8,7 @@ import SparseArrays
 
 export IdxPair, PDEStore, InterpolationStore
 export SPOD_points, pcg!, extrapolate!, extrapolate, check_rates
-export double_indices, interpolated_λ!, interpolated_μ!
+export double_indices, interpolated_K!, interpolated_μ!
 export integrand_init!, integrand!, slow_integrand!
 export simulations!, slow_simulations!
 
@@ -54,7 +54,7 @@ function check_rates end
 include("submodules/Utils.jl")
 
 function double_indices end
-function interpolated_λ! end
+function interpolated_K! end
 function interpolated_μ! end
 include("submodules/InterpolatedCoefs.jl")
 

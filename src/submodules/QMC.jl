@@ -32,9 +32,9 @@ function simulations!(pts::Mat64, Λ::Float64, μ::Function, ∇μ::Function,
     return Φ, Φ_error, Φ_det, Φ_det_error, pcg_its
 end
 
-function simulations!(pts::Mat64, λ::Function, f::Function,
+function simulations!(pts::Mat64, K::Function, f::Function,
 	              pstore::PDEStore, istore::InterpolationStore)
-    Φ_det, Φ_det_error = integrand_init!(pstore, λ, f)
+    Φ_det, Φ_det_error = integrand_init!(pstore, K, f)
     blas_threads = BLAS.get_num_threads()
     BLAS.set_num_threads(1)
     s, N = size(pts)
@@ -48,7 +48,7 @@ function simulations!(pts::Mat64, λ::Function, f::Function,
 	istore_local = deepcopy(istore)
 	for l in chunk
 	    y = view(pts, :, l)
-	    Φ[l], Φ_error[l], pcg_its[:,l] = integrand!(y, λ, pstore_local, 
+	    Φ[l], Φ_error[l], pcg_its[:,l] = integrand!(y, K, pstore_local, 
 						        istore_local)
 	end
     end

@@ -154,11 +154,11 @@ function create_tables(exno::Int64; Λ::Float64, nrows=4)
             "N", "L", "error", "rate")
     for k = 1:nrows
         if k == 1
-             @printf("%6d& %14.10f& %10.2e& %8s\\\\\n",
+             @printf("%6d& %14.8f& %10.2e& %8s\\\\\n",
                      Nvals[k], L[k], L_error[k], "")
         else
 	    rate = log2(abs(L_error[k-1]/L_error[k]))
-            @printf("%6d& %14.10f& %10.2e& %8.3f\\\\\n",
+            @printf("%6d& %14.8f& %10.2e& %8.3f\\\\\n",
                     Nvals[k], L[k], L_error[k], rate)
         end
     end

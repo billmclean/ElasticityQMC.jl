@@ -28,5 +28,5 @@ z = rand(s₂) .- 1/2
 
 function profile_test(y, z)
     Φ_det, Φ_det_error = integrand_init!(pstore, Λ, f)
-    Φ, Φ_error = integrand!(y, z, Λ, pstore, istore)
+    Φ, Φ_error, num_its = integrand!(y, z, Λ, pstore, istore)
 end

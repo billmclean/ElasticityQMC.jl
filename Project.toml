@@ -1,7 +1,7 @@
 name = "ElasticityQMC"
 uuid = "e8b82417-11fb-4043-bc54-ad5f4bbc0091"
-authors = ["William McLean <w.mclean@unsw.edu.au>"]
 version = "0.1.0"
+authors = ["William McLean <w.mclean@unsw.edu.au>"]
 
 [deps]
 ArgCheck = "dce04be8-c92d-5529-be00-80e4d2c0e197"
@@ -13,3 +13,6 @@ SimpleFiniteElements = "125632e7-bef4-4648-bc1f-71b5efcf8068"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+
+[compat]
+SimpleFiniteElements = "0.1.2"

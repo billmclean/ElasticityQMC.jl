@@ -19,9 +19,9 @@ z = rand(s) .- 1/2
 
 istore = InterpolationStore(idx, α, standard_resolution, high_resolution)
 
-@printf("Using %d x %d grid to computing interpolants for λ and μ.\n", 
+@printf("Using %d x %d grid to compute interpolants for λ and μ.\n", 
 	standard_resolution[1], standard_resolution[2])
-@printf("Using %d x %d grid to computing interpolants for components of ∇μ.\n",
+@printf("Using %d x %d grid to compute interpolants for components of ∇μ.\n",
 	high_resolution[1], high_resolution[2])
 M₁ = 3 * high_resolution[1]
 M₂ = 3 * high_resolution[2]

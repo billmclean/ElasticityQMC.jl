@@ -140,6 +140,7 @@ function create_tables(exno::Int64; Λ::Float64, nrows=4)
         elapsed[k] = time() - start
         L[k] = sum(Φ) / Nvals[k]
         L_error[k] = L[k] - L_ref
+#        L_error[k] = (L[k] - L_ref) / L_ref
         if k == 1
              @printf("%6d  %14.10f  %10.3e  %8s  %8.3f\n",
                      Nvals[k], L[k], L_error[k], "", elapsed[k])
@@ -164,9 +165,4 @@ function create_tables(exno::Int64; Λ::Float64, nrows=4)
     end
     return L_error, pcg_its
 end
-
-
-
-
-        
     

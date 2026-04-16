@@ -127,8 +127,7 @@ function deterministic_solve!(pstore::PDEStore, bilinear_forms::Dict,
         end
         Φ_det[grid], _ = average_field(u2h[grid], "Omega", dof[grid])
     end
-    Φ_det_error = extrapolate!(Φ_det, 2)
-    return Φ_det[1], Φ_det_error
+    return Φ_det
 end
 
 function integrand!(z::AVec64, Λ::Float64, μ::Function, ∇μ::Function,
@@ -241,8 +240,7 @@ function random_solve!(pstore::PDEStore, bilinear_forms::Dict)
         end
         Φ[grid], _ = average_field(u2h[grid], "Omega", dof[grid])
     end
-    Φ_error = extrapolate!(Φ, 2)
-    return Φ[1], Φ_error, num_its
+    return Φ, num_its
 end
 
 end 

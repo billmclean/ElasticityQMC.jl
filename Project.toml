@@ -1,7 +1,7 @@
 name = "ElasticityQMC"
 uuid = "e8b82417-11fb-4043-bc54-ad5f4bbc0091"
-authors = ["William McLean <w.mclean@unsw.edu.au>"]
 version = "0.1.0"
+authors = ["William McLean <w.mclean@unsw.edu.au>"]
 
 [deps]
 ArgCheck = "dce04be8-c92d-5529-be00-80e4d2c0e197"

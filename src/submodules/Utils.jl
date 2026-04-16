@@ -81,40 +81,36 @@ function extrapolate!(Φ::Vec64, rate::Int64)
     return correction
 end
 
-function extrapolate!(Φ::Matrix{Float64}, rate::Int64)
-    m, n = size(Φ)
-    error_estimate = Vector{Float64}(undef, m)
-    pow = 2^rate
-    for step = 1:n-1
-        for i = 1:m
-            for j = 1:n-step
-                correction = (Φ[i,j+1] - Φ[i,j]) / ( pow - 1)
-                Φ[i,j] = Φ[i,j+1] + correction
-                if step == n-1
-                    error_estimate[i] = correction
-                end
-            end
-        end
-        pow *= 2^rate
-    end
-    return error_estimate
-end
-
 function extrapolate(Φ::Matrix{Float64}, rate::Int64)
     Φ_extrap = copy(Φ)
     error_estimate = extrapolate!(Φ_extrap, rate)
     return Φ_extrap, error_estimate
 end
 
-function check_rates(Φ::Matrix{Float64}, rate::Int64)
-    m, n = size(Φ)
-    ratio = Matrix{Float64}(undef, m,n-2)
-    for j = 1:n-2
-        for i = 1:m
-            ratio[i,j] = ( Φ[i,j+1] - Φ[i,j] ) / ( Φ[i,j+2] - Φ[i,j+1] )
+function extrapolate!(xtable::Matrix{Float64}, rate::Int64)
+    m, n = size(xtable)
+    correction = zeros(m,n)
+    pow = 2^rate
+    for j = 2:n
+        for i = j:m
+            correction[i,j] = (xtable[i,j-1] - xtable[i-1,j-1]) / ( pow - 1)
+            xtable[i,j] = xtable[i,j-1] + correction[i,j]
+        end
+        pow *= 2^rate
+    end
+    return correction
+end
+
+function check_rates(xtable::Matrix{Float64})
+    m, n = size(xtable)
+    rate = zeros(m, n)
+    for j = 1:n
+        for i = j+1:m-1
+            rate[i,j] = log2(( xtable[i,j] - xtable[i-1,j] ) 
+                             / ( xtable[i+1,j] - xtable[i,j] ))
         end
     end
-    return ratio
+    return rate
 end
 
 end # module

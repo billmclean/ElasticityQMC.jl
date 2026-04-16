@@ -1,5 +1,6 @@
 using ElasticityQMC
 using SimpleFiniteElements
+import  SimpleFiniteElements.MeshGen: max_elt_diameter
 import StaticArrays: SA
 using Printf
 
@@ -15,7 +16,7 @@ if conforming_elements
     element_description = "conforming"
 else
     mesh_order = 2
-    ngrids = 3
+    ngrids = 5
     element_description = "non-conforming"
 end
 mesh = FEMesh(gmodel, hmax, order=mesh_order, save_msh_file=false, 
@@ -48,16 +49,44 @@ istore = InterpolationStore(idx, α, (N_std, N_std), (N_hi, N_hi))
 
 integrand_init!(pstore, Λ, μ, ∇μ, f)
 z = rand(s) .- 1/2
-Φ, Φ_error, num_its = integrand!(z, Λ, μ, ∇μ, pstore, istore)
+Φ, num_its = integrand!(z, Λ, μ, ∇μ, pstore, istore)
 @printf("\nRandom K, determinisitic μ:\n")
-@printf("\tΦ = %0.6f, Φ_error = %0.2e, num_its = %d, %d, %d\n",
-        Φ, Φ_error, num_its[1], num_its[2], num_its[3])
+@printf("\n%4s  %15s  %5s  %8s\n\n", "grid", "Lₕ", "DoF", "h")
+for grid = 1:ngrids
+    h = max_elt_diameter(pstore.dof[grid].mesh)
+    @printf("%4d  %15.10f  %5d  %8.4f\n", 
+            grid, Φ[grid], pstore.dof[grid].num_free, h)
+end
+xtable = zeros(ngrids, ngrids)
+xtable[:,1] = Φ
+corrections = extrapolate!(xtable, 2)
+@printf("\nExtrapolated values of L:\n")
+for i = 1:ngrids
+    for j = 1:i
+        @printf("%12.10f  ", xtable[i,j])
+    end
+    @printf("\n")
+end
 
 y = rand(s) .- 1/2
 
 integrand_init!(pstore, Λ, f)
-Φ, Φ_error, num_its = integrand!(y, z, Λ, pstore, istore)
+Φ, num_its = integrand!(y, z, Λ, pstore, istore)
 @printf("\nRandom K and μ:\n")
-@printf("\tΦ = %0.6f, Φ_error = %0.2e, num_its = %d, %d, %d\n",
-        Φ, Φ_error, num_its[1], num_its[2], num_its[3])
+@printf("\n%4s  %15s  %5s  %8s\n\n", "grid", "Lₕ", "DoF", "h")
+for grid = 1:ngrids
+    h = max_elt_diameter(pstore.dof[grid].mesh)
+    @printf("%4d  %15.10f  %5d  %8.4f\n", 
+            grid, Φ[grid], pstore.dof[grid].num_free, h)
+end
+xtable = zeros(ngrids, ngrids)
+xtable[:,1] = Φ
+corrections = extrapolate!(xtable, 2)
+@printf("\nExtrapolated values of L:\n")
+for i = 1:ngrids
+    for j = 1:i
+        @printf("%12.10f  ", xtable[i,j])
+    end
+    @printf("\n")
+end
 

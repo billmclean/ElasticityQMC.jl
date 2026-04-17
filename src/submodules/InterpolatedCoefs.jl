@@ -8,7 +8,7 @@ import SpecialFunctions: zeta
 using ArgCheck
 
 # Extending dummy functions from ElasticityQMC.
-import ..double_indices, ..interpolated_λ!, ..interpolated_μ!
+import ..double_indices, ..interpolated_K!, ..interpolated_μ!
 
 function double_indices(n::Int64)
     idx = Vector{IdxPair}(undef, n*(n+1) ÷ 2)
@@ -21,12 +21,6 @@ function double_indices(n::Int64)
         end
     end
     return idx
-end
-
-macro unpack_InterpolationStore(q)
-    code =  Expr(:block, [ :($field = $q.$field)
-                          for field in fieldnames(InterpolationStore) ]...)
-    esc(code)
 end
 
 function InterpolationStore(idx::Vector{IdxPair}, α::Float64, 
@@ -55,9 +49,8 @@ function InterpolationStore(idx::Vector{IdxPair}, α::Float64,
 			      ∂₂coef, ∂₂vals, plan)
 end
 
-function interpolated_λ!(z::AVec64, istore::InterpolationStore,
-                            Λ=1.0)
-    @unpack_InterpolationStore(istore)
+function interpolated_K!(z::AVec64, istore::InterpolationStore, Λ=1.0)
+    (; idx, vals) = istore
     @argcheck length(idx) == size(z, 1)
     KL_expansion!(z, istore)
     if Λ ≠ 1.0
@@ -69,31 +62,25 @@ function interpolated_λ!(z::AVec64, istore::InterpolationStore,
     return cubic_spline_interpolation((x₁, x₂), vals)
 end
 
-function interpolated_μ!(y::AVec64, istore::InterpolationStore, λ::Function)
-    @unpack_InterpolationStore(istore)
+function interpolated_μ!(y::AVec64, istore::InterpolationStore)
+    (; idx, vals, ∂₁vals, ∂₂vals) = istore
     @argcheck length(idx) == size(y, 1)
     KL_expansion_with_gradient!(y, istore)
     N₁, N₂ = size(vals)
     x₁ = range(0, 1, length=N₁)
     x₂ = range(0, 1, length=N₂)
     μ = cubic_spline_interpolation((x₁, x₂), vals)
-    for j in eachindex(x₂)
-	for i in eachindex(x₁)
-	    vals[i,j] += λ(x₁[i], x₂[j]) # now holds values for μ + λ
-	end
-    end
-    μ_plus_λ = cubic_spline_interpolation((x₁, x₂), vals)
     N₁, N₂ = size(∂₁vals)
     x₁ = range(0, 1, length=N₁)
     x₂ = range(0, 1, length=N₂)
     ∂₁μ = cubic_spline_interpolation((x₁, x₂), ∂₁vals)
     ∂₂μ = cubic_spline_interpolation((x₁, x₂), ∂₂vals)
 
-    return μ, μ_plus_λ, ∂₁μ, ∂₂μ
+    return μ, ∂₁μ, ∂₂μ
 end
 
 function KL_expansion!(z::AVec64, istore::InterpolationStore)
-    @unpack_InterpolationStore(istore)
+    (;idx, α, M_α, coef, vals, plan) = istore
     for j in eachindex(idx)
         k, l = idx[j]
         decay_factor = 1 / (k + l)^(2α)
@@ -107,7 +94,7 @@ function KL_expansion!(z::AVec64, istore::InterpolationStore)
 end
 
 function KL_expansion_with_gradient!(y::AVec64, istore::InterpolationStore)
-    @unpack_InterpolationStore(istore)
+    (; idx, M_α, coef, ∂₁coef, ∂₁vals, ∂₂coef, ∂₂vals) = istore
     KL_expansion!(y, istore)
     for j in eachindex(idx)
         k, l = idx[j]
@@ -119,7 +106,7 @@ function KL_expansion_with_gradient!(y::AVec64, istore::InterpolationStore)
 end
 
 """
-    sin_sin_sum!(S, a)
+    sin_sin_sum!(S, a, plan)
 
 Computes the double sin sum
 
@@ -235,31 +222,29 @@ function sin_cos_sum!(S::Matrix{Float64}, a::Matrix{Float64},
     end
 end
 
-function λ_μ_sums!(y::AVec64, z::AVec64, α::Float64, Λ::Float64,
-                   λ_coef::Mat64, μ_coef::Mat64, λ_vals::Mat64, μ_vals::Mat64, 
+function K_μ_sums!(y::AVec64, z::AVec64, α::Float64, Λ::Float64,
+                   K_coef::Mat64, μ_coef::Mat64, K_vals::Mat64, μ_vals::Mat64, 
                    idx::Vector{IdxPair}, plan::r2rFFTWPlan)
     M_α = zeta(2α-1) - zeta(2α)
     for j in eachindex(idx)
         k, l = idx[j]
         decay_factor = 1 / (k + l)^(2α)
-        λ_coef[k,l] = y[j] * decay_factor
+        K_coef[k,l] = y[j] * decay_factor
         μ_coef[k,l] = z[j] * decay_factor
     end
-    n₁, n₂ = size(λ_coef)
+    n₁, n₂ = size(K_coef)
     N₁, N₂ = n₁ + 1, n₂ + 1
-    sin_sin_sum!(λ_vals, λ_coef, plan)
+    sin_sin_sum!(K_vals, K_coef, plan)
     sin_sin_sum!(μ_vals, μ_coef, plan)
     for j = 0:N₂, i = 0:N₁
-        λ_vals[i+1,j+1] = Λ * ( 1 + λ_vals[i+1,j+1] / M_α )
+        K_vals[i+1,j+1] = Λ * ( 1 + K_vals[i+1,j+1] / M_α )
 	μ_vals[i+1,j+1] =       1 + μ_vals[i+1,j+1] / M_α 
     end
     return M_α
 end
 
-function slow_λ(x₁::Float64, x₂::Float64, y::Vec64, 
+function slow_K(x₁::Float64, x₂::Float64, y::AVec64, 
                 α::Float64, Λ::Float64, idx::Vector{IdxPair})
-    N₁ = length(x₁) - 1
-    N₂ = length(x₂) - 1
     M_α = zeta(2α-1) - zeta(2α)
     Σ = 0.0
     for j in eachindex(idx)
@@ -270,10 +255,8 @@ function slow_λ(x₁::Float64, x₂::Float64, y::Vec64,
     return Λ * ( 1 + Σ / M_α )
 end
 
-function slow_μ(x₁::Float64, x₂::Float64, z::Vec64, 
-                α::Float64, Λ::Float64, idx::Vector{IdxPair})
-    N₁ = length(x₁) - 1
-    N₂ = length(x₂) - 1
+function slow_μ(x₁::Float64, x₂::Float64, z::AVec64, 
+                α::Float64, idx::Vector{IdxPair})
     M_α = zeta(2α-1) - zeta(2α)
     Σ = 0.0
     for j in eachindex(idx)
@@ -284,8 +267,8 @@ function slow_μ(x₁::Float64, x₂::Float64, z::Vec64,
     return  1 + Σ / M_α
 end
 
-function slow_∂₁μ(x₁::Float64, x₂::Float64, z::Vec64, 
-                  α::Float64, Λ::Float64, idx::Vector{IdxPair})
+function slow_∂₁μ(x₁::Float64, x₂::Float64, z::AVec64, 
+                  α::Float64, idx::Vector{IdxPair})
     N₁ = length(x₁) - 1
     N₂ = length(x₂) - 1
     M_α = zeta(2α-1) - zeta(2α)
@@ -298,8 +281,8 @@ function slow_∂₁μ(x₁::Float64, x₂::Float64, z::Vec64,
     return  Σ / M_α
 end
 
-function slow_∂₂μ(x₁::Float64, x₂::Float64, z::Vec64, 
-                  α::Float64, Λ::Float64, idx::Vector{IdxPair})
+function slow_∂₂μ(x₁::Float64, x₂::Float64, z::AVec64, 
+                  α::Float64, idx::Vector{IdxPair})
     N₁ = length(x₁) - 1
     N₂ = length(x₂) - 1
     M_α = zeta(2α-1) - zeta(2α)

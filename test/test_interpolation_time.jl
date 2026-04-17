@@ -1,5 +1,5 @@
 using ElasticityQMC
-import ElasticityQMC.InterpolatedCoefs: slow_λ, slow_μ, slow_∂₁μ, slow_∂₂μ
+import ElasticityQMC.InterpolatedCoefs: slow_K, slow_μ, slow_∂₁μ, slow_∂₂μ
 import Printf: @printf
 using PyPlot
 
@@ -31,19 +31,17 @@ x₁ = range(0, 1, length=M₁)
 x₂ = range(0, 1, length=M₂)
 
 start = time()
-λ = interpolated_λ!(z, istore, Λ)
-μ, μ_plus_λ, ∂₁μ, ∂₂μ = interpolated_μ!(y, istore, (x₁, x₂) -> Λ)
+K = interpolated_K!(z, istore, Λ)
+μ, ∂₁μ, ∂₂μ = interpolated_μ!(y, istore)
 
-λ_interp = zeros(M₁, M₂)
+K_interp = zeros(M₁, M₂)
 μ_interp = zeros(M₁, M₂)
-μ_plus_λ_interp = zeros(M₁, M₂)
 ∂₁μ_interp = zeros(M₁, M₂)
 ∂₂μ_interp = zeros(M₁, M₂)
 for j in eachindex(x₂)
     for i in eachindex(x₂)
-	λ_interp[i,j] = λ(x₁[i], x₂[j])
+	K_interp[i,j] = K(x₁[i], x₂[j])
 	μ_interp[i,j] = μ(x₁[i], x₂[j])
-	μ_plus_λ_interp[i,j] = μ_plus_λ(x₁[i], x₂[j])
 	∂₁μ_interp[i,j] = ∂₁μ(x₁[i], x₂[j])
 	∂₂μ_interp[i,j] = ∂₂μ(x₁[i], x₂[j])
     end
@@ -84,18 +82,16 @@ x₂ = range(0, 1, length=M₂)
 
 start = time()
 
-λ_val = zeros(M₁, M₂)
+K_val = zeros(M₁, M₂)
 μ_val = zeros(M₁, M₂)
-μ_plus_λ_val = zeros(M₁, M₂)
 ∂₁μ_val = zeros(M₁, M₂)
 ∂₂μ_val = zeros(M₁, M₂)
 for j in eachindex(x₂)
     for i in eachindex(x₂)
-	λ_val[i,j] = slow_λ(x₁[i], x₂[j], z, α, Λ, idx) 
-	μ_val[i,j] = slow_μ(x₁[i], x₂[j], y, α, Λ, idx) 
-	μ_plus_λ_val[i,j] = slow_μ(x₁[i], x₂[j], y, α, Λ, idx) - Λ 
-	∂₁μ_val[i,j] = slow_∂₁μ(x₁[i], x₂[j], y, α, Λ, idx) 
-	∂₂μ_val[i,j] = slow_∂₂μ(x₁[i], x₂[j], y, α, Λ, idx) 
+	K_val[i,j] = slow_K(x₁[i], x₂[j], z, α, Λ, idx) 
+	μ_val[i,j] = slow_μ(x₁[i], x₂[j], y, α, idx) 
+	∂₁μ_val[i,j] = slow_∂₁μ(x₁[i], x₂[j], y, α, idx) 
+	∂₂μ_val[i,j] = slow_∂₂μ(x₁[i], x₂[j], y, α, idx) 
     end
 end
 elapsed = time() - start

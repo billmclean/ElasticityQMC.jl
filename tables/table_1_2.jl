@@ -9,8 +9,9 @@ import Printf: @printf
 
 nrows = 5 # must be at least 2
 quadrature_level = 1
-Λ = 1.0
-#Λ = 1000.0
+#Λ = 1.0
+Λ = 1000.0
+#Λ = 100000.0
 α = 0.5
 β = 1.0
 println("Parameters Λ = $Λ, α = $α, β = $β")

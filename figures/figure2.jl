@@ -23,18 +23,18 @@ istore = InterpolationStore(idx, α, standard_resolution, high_resolution)
 col = 88
 @printf("Choosing z from column %d\n", col)
 z = pts[k][:,col]
-λ = interpolated_λ!(z, istore, Λ)
+K = interpolated_K!(z, istore, Λ)
 
-#figure(1, figsize=(6,4))
-figure(1)
+#figure(2, figsize=(6,4))
+figure(2)
 xx = range(0, 1, length=100)
 yy = range(0, 1, length=100)
 
-contourf(xx, yy, λ.(xx',yy), 10)
+contourf(xx, yy, K.(xx',yy), 10)
 axis("equal")
 xlabel(L"$x_1$")
 ylabel(L"$x_2$")
-title(L"$\lambda(\mathbf{x},\mathbf{z})$")
+title(L"$K(\mathbf{x},\mathbf{z})$")
 colorbar()
 
-savefig("fig1.pdf")
+savefig("fig2.pdf")

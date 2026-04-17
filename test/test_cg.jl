@@ -7,7 +7,7 @@ using PyPlot
 
 path = joinpath("..", "spatial_domains", "unit_square.geo")
 gmodel = GeometryModel(path)
-Λ = 1.0
+Λ = 2.0
 λ0 = Λ
 μ0 = 1.0
 
@@ -36,8 +36,8 @@ N₁ = N₂ = 255
 standard_resolution = (256, 256)
 high_resolution = (512, 512)
 istore = InterpolationStore(idx, α, standard_resolution, high_resolution)
-λ_ = interpolated_λ!(z, istore, Λ)
-λ(x₁, x₂) = λ_(x₁, x₂)
+K = interpolated_K!(z, istore, Λ)
+λ(x₁, x₂) = K(x₁, x₂) - μ0
 bilinear_forms = Dict("Omega" => [(∫∫λ_div_u_div_v!, λ),
 				  (∫∫2μ_εu_εv!, μ0)])
 A_free, _ = assemble_matrix(dof, bilinear_forms, 2)
@@ -57,7 +57,7 @@ println("Required $num_its PCG iterations with preconditioning")
 figure(1)
 x1 = range(0, 1, length=150)
 x2 = range(0, 1, length=150)
-z = Float64[ λ_(x1[i1], x2[i2]) for i2 = 1:150, i1 = 1:150 ]
+z = Float64[ λ(x1[i1], x2[i2]) for i2 = 1:150, i1 = 1:150 ]
 contourf(x1, x2, z)
 colorbar()
 title("The Coefficient λ")

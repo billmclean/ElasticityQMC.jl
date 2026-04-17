@@ -1,12 +1,13 @@
 using ElasticityQMC
 using SimpleFiniteElements
+import  SimpleFiniteElements.MeshGen: max_elt_diameter
 import StaticArrays: SA
 using Printf
 
 path = joinpath("..", "spatial_domains", "unit_square.geo")
 gmodel = GeometryModel(path)
 hmax = 0.2
-conforming_elements = true
+conforming_elements = false
 solver = :pcg  # :direct or :pcg
 
 if conforming_elements
@@ -15,7 +16,7 @@ if conforming_elements
     element_description = "conforming"
 else
     mesh_order = 2
-    ngrids = 3
+    ngrids = 5
     element_description = "non-conforming"
 end
 mesh = FEMesh(gmodel, hmax, order=mesh_order, save_msh_file=false, 
@@ -36,10 +37,9 @@ Solving BVP with $element_description finite elements.
 Solver is $solver, tol = $pcg_tol.
 Finest mesh has h = $h_string.
 Using s = $s with α = $α, Λ = $Λ.
-Interpolating λ and μ using $N_std x $N_std spatial grid."""
+Interpolating K and μ using $N_std x $N_std spatial grid."""
 println(msg)
 
-λ(x₁, x₂) = Λ * ( 1 + 0.5 * sinpi(2x₁) )
 μ(x₁, x₂) = 1 + x₁ + x₂
 ∇μ(x₁, x₂) = SA[1.0, 1.0]
 f(x, y) = SA[1-y^2, 2x-20.0]
@@ -49,12 +49,44 @@ istore = InterpolationStore(idx, α, (N_std, N_std), (N_hi, N_hi))
 
 integrand_init!(pstore, Λ, μ, ∇μ, f)
 z = rand(s) .- 1/2
-Φ, Φ_error, num_its = integrand!(z, Λ, μ, ∇μ, pstore, istore)
+Φ, num_its = integrand!(z, Λ, μ, ∇μ, pstore, istore)
+@printf("\nRandom K, determinisitic μ:\n")
+@printf("\n%4s  %15s  %5s  %8s\n\n", "grid", "Lₕ", "DoF", "h")
+for grid = 1:ngrids
+    h = max_elt_diameter(pstore.dof[grid].mesh)
+    @printf("%4d  %15.10f  %5d  %8.4f\n", 
+            grid, Φ[grid], pstore.dof[grid].num_free, h)
+end
+xtable = zeros(ngrids, ngrids)
+xtable[:,1] = Φ
+corrections = extrapolate!(xtable, 2)
+@printf("\nExtrapolated values of L:\n")
+for i = 1:ngrids
+    for j = 1:i
+        @printf("%12.10f  ", xtable[i,j])
+    end
+    @printf("\n")
+end
 
-integrand_init!(pstore, λ, f)
 y = rand(s) .- 1/2
-Φ, Φ_error, num_its = integrand!(y, λ, pstore, istore)
 
 integrand_init!(pstore, Λ, f)
-Φ, Φ_error, num_its = integrand!(y, z, Λ, pstore, istore)
+Φ, num_its = integrand!(y, z, Λ, pstore, istore)
+@printf("\nRandom K and μ:\n")
+@printf("\n%4s  %15s  %5s  %8s\n\n", "grid", "Lₕ", "DoF", "h")
+for grid = 1:ngrids
+    h = max_elt_diameter(pstore.dof[grid].mesh)
+    @printf("%4d  %15.10f  %5d  %8.4f\n", 
+            grid, Φ[grid], pstore.dof[grid].num_free, h)
+end
+xtable = zeros(ngrids, ngrids)
+xtable[:,1] = Φ
+corrections = extrapolate!(xtable, 2)
+@printf("\nExtrapolated values of L:\n")
+for i = 1:ngrids
+    for j = 1:i
+        @printf("%12.10f  ", xtable[i,j])
+    end
+    @printf("\n")
+end
 

@@ -102,21 +102,21 @@ function create_tables(exno::Int64; Λ::Float64, nrows=4)
         @printf("Computing reference solution (N = %d) ...", Nref)
         start = time()
         if exno == 2
-	    Φ, Φ_error, Φ_det, _, pcg_its = simulations!(
+	    Φ, Φ_det, pcg_its = simulations!(
                 pts[ref_row], Λ, μ, ∇μ, f, pstore, istore)
 	elseif exno == 3
 	    if use_fft
-	        Φ, Φ_error, Φ_det, _, pcg_its = simulations!(
+	        Φ, Φ_det, pcg_its = simulations!(
                     pts[ref_row], Λ, f, pstore, istore)
 	    else
-	        Φ, Φ_error, Φ_det, _, pcg_its = slow_simulations!(
+	        Φ, Φ_det, pcg_its = slow_simulations!(
                     pts[ref_row], α, Λ, idx, f, pstore)
 	    end
         end
         elapsed_ref = time() - start
         @printf(" in %d seconds.\n", elapsed_ref)
-        L_ref = sum(Φ) / Nref
-        L_det = sum(Φ_det) / Nref
+        L_ref = sum(Φ, dims=2) / Nref
+        L_det = Φ_det
         FEM_error = sum(Φ_error) / Nref
         jldsave(refsoln_file; L_ref, L_det, FEM_error, pcg_its)
     end
@@ -129,12 +129,12 @@ function create_tables(exno::Int64; Λ::Float64, nrows=4)
     for k = 1:nrows    
         start = time()
         if exno == 2
-	    Φ, _, _, _ = simulations!(pts[k], Λ, μ, ∇μ, f, pstore, istore)
+	    Φ, _, _ = simulations!(pts[k], Λ, μ, ∇μ, f, pstore, istore)
 	elseif exno == 3
 	    if use_fft
-	        Φ, _, _, _ = simulations!(pts[k], Λ, f, pstore, istore)
+	        Φ, _, _ = simulations!(pts[k], Λ, f, pstore, istore)
 	    else
-	        Φ, _, _, _ = slow_simulations!(pts[k], α, Λ, idx, f, pstore)
+	        Φ, _, _ = slow_simulations!(pts[k], α, Λ, idx, f, pstore)
 	    end
         end
         elapsed[k] = time() - start

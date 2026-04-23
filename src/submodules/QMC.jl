@@ -7,6 +7,12 @@ using LinearAlgebra
 # Extending dummy functions from ElasticityQMC.
 import ..simulations!, ..slow_simulations!
 
+function simulations(pts::Mat64, mesh::FEMesh, 
+                     Λ::Float64, μ::Function, ∇μ::Function, f::Function, 
+                     istore::InterpolationStore)
+
+end
+
 function simulations!(pts::Mat64, Λ::Float64, μ::Function, ∇μ::Function,
 	              f::Function, pstore::PDEStore, istore::InterpolationStore)
     Φ_det = integrand_init!(pstore, Λ, μ, ∇μ, f)

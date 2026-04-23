@@ -5,26 +5,28 @@ import SimpleFiniteElements.FEM: average_field
 import LinearAlgebra: BLAS, cholesky
 
 import ..PDEStore, ..InterpolationStore, ..extrapolate!, ..pcg!
-import ..Vec64, ..Mat64, ..AVec64, ..SA, ..SparseCholeskyFactor, ..IdxPair
+import ..Vec64, ..Mat64, ..AVec64, ..SA, ..DOF, ..SparseCholeskyFactor, ..IdxPair
 import ..interpolated_K!, ..interpolated_μ!
 import ..InterpolatedCoefs: slow_K, slow_μ, slow_∂₁μ, slow_∂₂μ
 
 import ..integrand_init!, ..integrand!, ..slow_integrand!
 
-function PDEStore(mesh::Vector{FEMesh};
+include("new_PDE.jl")
+
+function PDEStore(mesh::FEMesh;
         conforming::Bool, solver, pcg_tol=0.0, pcg_maxits=100)
     gD = SA[0.0, 0.0]
     essential_bcs = [("Top", gD), ("Bottom", gD), ("Left", gD), ("Right", gD)]
-    ngrids = lastindex(mesh)
-    dof = Vector{DegreesOfFreedom}(undef, ngrids)
     if conforming
         El = SimpleFiniteElements.Elasticity
+        dof = DegreesOfFreedom(mesh, essential_bcs)
     else
         El = SimpleFiniteElements.NonConformingElasticity
+        dof = DegreesOfFreedom(mesh, essential_bcs, El.ELT_DOF)
     end
-    b_free = Vector{Vec64}(undef, ngrids)
-    u_free_det = Vector{Vec64}(undef, ngrids)
-    P = Vector{SparseCholeskyFactor}(undef, ngrids)
+    b_free = Vector{Float64}(undef, dof.num_free)
+    u_free_det = similar(b_free)
+    P = SparseCholeskyFactor}(undef, ngrids)
     wkspace = Vector{Mat64}(undef, ngrids)
     u_free = Vector{Vec64}(undef, ngrids)
     u2h = Vector{Vec64}(undef, ngrids)

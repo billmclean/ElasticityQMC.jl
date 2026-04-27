@@ -1,6 +1,6 @@
-function PDEStore(mesh::FEMesh, conforming::Bool, Λ::Float64, μ₀, ∇μ₀,
-                  f::Function, solver::Symbol, 
-                  pcg_tol::Float64, pcg_maxits::Int64)
+function PDEStore(mesh::FEMesh, conforming::Bool, Λ::Float64, 
+                  μ₀::Function, ∇μ₀::Function, f::Function, 
+                  solver::Symbol, pcg_tol::Float64, pcg_maxits::Int64)
     gD = SA[0.0, 0.0]
     essential_bcs = [("Top", gD), ("Bottom", gD), ("Left", gD), ("Right", gD)]
     if conforming
@@ -20,8 +20,10 @@ function PDEStore(mesh::FEMesh, conforming::Bool, Λ::Float64, μ₀, ∇μ₀,
     b_free, _ = assemble_vector(dof, linear_funcs, 2)
     P = cholesky(A_free)
     u_free_det = P \ b_free
+    num_free = dof.num_free
+    wkspace = Matrix{Float64}(undef, 2num_free, 4)
     return PDEStore(conforming, Λ, dof, b_free, u_free_det, solver, P,
-                    tol, maxits, wkspace)
+                    pcg_tol, pcg_maxits, wkspace)
 end
 
 function random_solve(bilinear_forms::Dict, pstore::PDEStore)
@@ -29,7 +31,7 @@ function random_solve(bilinear_forms::Dict, pstore::PDEStore)
     A_free, _ = assemble_matrix(dof, bilinear_forms, 2)
     if solver == :direct
         u_free = A_free \ b_free
-    elseif solver == ::pcg
+    elseif solver == :pcg
         u_free = copy(u_free_det)
         num_its = pcg!(u_free, A_free, b_free, P, tol, maxits, wkspace)
     else

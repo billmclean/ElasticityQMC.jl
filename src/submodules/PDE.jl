@@ -13,8 +13,8 @@ import ..integrand_init!, ..integrand!, ..slow_integrand!
 
 include("new_PDE.jl")
 
-function PDEStore(mesh::FEMesh;
-        conforming::Bool, solver, pcg_tol=0.0, pcg_maxits=100)
+function PDEStore(mesh::FEMesh, conforming::Bool, 
+                  solver, pcg_tol=0.0, pcg_maxits=100)
     gD = SA[0.0, 0.0]
     essential_bcs = [("Top", gD), ("Bottom", gD), ("Left", gD), ("Right", gD)]
     if conforming
@@ -25,8 +25,6 @@ function PDEStore(mesh::FEMesh;
         dof = DegreesOfFreedom(mesh, essential_bcs, El.ELT_DOF)
     end
     b_free = Vector{Float64}(undef, dof.num_free)
-    u_free_det = similar(b_free)
-    P = SparseCholeskyFactor}(undef, ngrids)
     wkspace = Vector{Mat64}(undef, ngrids)
     u_free = Vector{Vec64}(undef, ngrids)
     u2h = Vector{Vec64}(undef, ngrids)
@@ -132,21 +130,21 @@ function deterministic_solve!(pstore::PDEStore, bilinear_forms::Dict,
     return Φ_det
 end
 
-function integrand!(z::AVec64, Λ::Float64, μ::Function, ∇μ::Function,
+function integrand!(z::AVec64, Λ::Float64, μ₀::Function, ∇μ₀::Function,
 	            pstore::PDEStore, istore::InterpolationStore)
     conforming = pstore.conforming
     K_ = interpolated_K!(z, istore, Λ)
     K = (x₁, x₂) -> K_(x₁, x₂)
     if conforming
         El = SimpleFiniteElements.Elasticity
-        λ(x₁, x₂) = K(x₁, x₂) - μ(x₁, x₂)
+        λ(x₁, x₂) = K(x₁, x₂) - μ₀(x₁, x₂)
         bilinear_forms = Dict("Omega" => [(El.∫∫λ_div_u_div_v!, λ),
-                                          (El.∫∫2μ_εu_εv!, μ)])
+                                          (El.∫∫2μ_εu_εv!, μ₀)])
     else
         El = SimpleFiniteElements.NonConformingElasticity
         bilinear_forms = Dict("Omega" => [(El.∫∫a_div_u_div_v!, K),
-                                          (El.∫∫μ_∇u_colon_∇v!, μ),
-                                          (El.correction!, ∇μ)])
+                                          (El.∫∫μ_∇u_colon_∇v!, μ₀),
+                                          (El.correction!, ∇μ₀)])
     end        
     random_solve!(pstore, bilinear_forms)
 end
@@ -220,28 +218,23 @@ function slow_integrand!(y::AVec64, z::AVec64, α::Float64, Λ::Float64,
 end
 
 function random_solve!(pstore::PDEStore, bilinear_forms::Dict)
-    (; dof, solver, b_free, u_free_det, P, wkspace, u_free, u2h, 
-         pcg_tol, pcg_maxits) = pstore
-    ngrids = lastindex(dof)
-    Φ = Vector{Float64}(undef, ngrids)
-    num_its = zeros(Int64, ngrids)
-    for grid in eachindex(dof)
-        A_free, _ = assemble_matrix(dof[grid], bilinear_forms, 2)
-        if solver == :direct
-            u_free[grid] .= A_free \ b_free[grid]
-        elseif solver == :pcg
-            u_free[grid] .= u_free_det[grid] # Starting vector
-	    num_its[grid] = pcg!(u_free[grid], A_free, b_free[grid], P[grid], 
-                           pcg_tol, pcg_maxits, wkspace[grid])
-        else
-            error("Unknown solver.")
-        end
-        num_free = dof[grid].num_free
-        for k = 1:num_free
-            u2h[grid][k] = u_free[grid][num_free+k]
-        end
-        Φ[grid], _ = average_field(u2h[grid], "Omega", dof[grid])
+    (; dof, solver, b_free, u_free_det, P, wkspace,  
+         tol, maxits) = pstore
+    A_free, _ = assemble_matrix(dof, bilinear_forms, 2)
+    if solver == :direct
+        u_free = A_free \ b_free
+    elseif solver == :pcg
+        u_free = copy(u_free_det) # Starting vector
+        num_its = pcg!(u_free, A_free, b_free, P, tol, maxits, wkspace)
+    else
+        error("Unknown solver.")
     end
+    (; num_free, num_fixed) = dof
+    u2h = zeros(num_free + num_fixed) # zero boundary conditions
+    for k = 1:num_free
+        u2h[k] = u_free[num_free+k]
+    end
+    Φ, _ = average_field(u2h, "Omega", dof)
     return Φ, num_its
 end
 

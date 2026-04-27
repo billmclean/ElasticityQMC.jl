@@ -2,6 +2,7 @@ module QMC
 
 import ..Mat64, ..PDEStore, ..InterpolationStore, ..IdxPair,
        ..integrand_init!, ..integrand!, ..slow_integrand!
+import SimpleFiniteElements: FEMesh
 using LinearAlgebra
 
 # Extending dummy functions from ElasticityQMC.

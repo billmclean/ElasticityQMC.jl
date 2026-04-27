@@ -21,7 +21,7 @@ else
 end
 mesh = FEMesh(gmodel, hmax, order=mesh_order, save_msh_file=false, 
 	      refinements=ngrids-1, verbosity=2)
-h_finest = max_elt_diameter(mesh[ngrids])
+h_finest = max_elt_diameter(mesh[end])
 h_string = @sprintf("%0.4f", h_finest)
 N_std = 256
 N_hi  = 512
@@ -30,8 +30,10 @@ N_hi  = 512
 Λ = 100.0
 n = 15
 pcg_tol = 1e-10
+pcg_maxits = 100
 idx = double_indices(n)
 s = lastindex(idx)
+istore = InterpolationStore(idx, α, (N_std, N_std), (N_hi, N_hi))
 msg = """
 Solving BVP with $element_description finite elements.
 Solver is $solver, tol = $pcg_tol.
@@ -43,22 +45,20 @@ println(msg)
 μ(x₁, x₂) = 1 + x₁ + x₂
 ∇μ(x₁, x₂) = SA[1.0, 1.0]
 f(x, y) = SA[1-y^2, 2x-20.0]
-pstore = PDEStore(mesh; conforming=conforming_elements, solver=solver,
-		  pcg_tol=pcg_tol)
-istore = InterpolationStore(idx, α, (N_std, N_std), (N_hi, N_hi))
 
-integrand_init!(pstore, Λ, μ, ∇μ, f)
 z = rand(s) .- 1/2
-Φ, num_its = integrand!(z, Λ, μ, ∇μ, pstore, istore)
 @printf("\nRandom K, determinisitic μ:\n")
+xtable = zeros(ngrids, ngrids)
 @printf("\n%4s  %15s  %5s  %8s\n\n", "grid", "Lₕ", "DoF", "h")
 for grid = 1:ngrids
-    h = max_elt_diameter(pstore.dof[grid].mesh)
+    pstore = PDEStore(mesh[grid], conforming_elements, Λ, μ, ∇μ, f, solver,
+		      pcg_tol, pcg_maxits)
+    Φ, num_its = integrand!(z, Λ, μ, ∇μ, pstore, istore)
+    xtable[grid,1] = Φ
+    h = max_elt_diameter(pstore.dof.mesh)
     @printf("%4d  %15.10f  %5d  %8.4f\n", 
-            grid, Φ[grid], pstore.dof[grid].num_free, h)
+            grid, Φ, pstore.dof.num_free, h)
 end
-xtable = zeros(ngrids, ngrids)
-xtable[:,1] = Φ
 corrections = extrapolate!(xtable, 2)
 @printf("\nExtrapolated values of L:\n")
 for i = 1:ngrids
@@ -75,9 +75,12 @@ integrand_init!(pstore, Λ, f)
 @printf("\nRandom K and μ:\n")
 @printf("\n%4s  %15s  %5s  %8s\n\n", "grid", "Lₕ", "DoF", "h")
 for grid = 1:ngrids
+    pstore = PDEStore(mesh[grid], conforming_elements, Λ, μ, ∇μ, f, solver,
+		      pcg_tol, pcg_maxits)
+    Φ, num_its = integrand!(y, z, Λ, μ, ∇μ, pstore, istore)
     h = max_elt_diameter(pstore.dof[grid].mesh)
     @printf("%4d  %15.10f  %5d  %8.4f\n", 
-            grid, Φ[grid], pstore.dof[grid].num_free, h)
+            grid, Φ, pstore.dof.num_free, h)
 end
 xtable = zeros(ngrids, ngrids)
 xtable[:,1] = Φ

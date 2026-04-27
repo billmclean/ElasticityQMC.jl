@@ -18,19 +18,19 @@ const Mat64 = Matrix{Float64}
 const SparseCholeskyFactor = SparseArrays.CHOLMOD.Factor{Float64}
 const AVec64 = AbstractVector{Float64}
 const FuncOrConst = Union{Function,Float64}
+const DOF = SimpleFiniteElements.DegreesOfFreedom
 
 struct PDEStore
     conforming::Bool
+    Λ::Float64
+    dof::DOF
+    b_free::Vec64
+    u_free_det::Vec64
     solver::Symbol
-    dof::Vector{SimpleFiniteElements.DegreesOfFreedom}
-    b_free::Vector{Vec64}
-    u_free_det::Vector{Vec64}
-    P::Vector{SparseCholeskyFactor}
-    wkspace::Vector{Mat64}
-    u_free::Vector{Vec64}
-    u2h::Vector{Vec64}
-    pcg_tol::Float64
-    pcg_maxits::Integer
+    P::SparseCholeskyFactor
+    tol::Float64    # used by PCG solver
+    maxits::Integer
+    wkspace::Mat64
 end
 
 struct InterpolationStore 

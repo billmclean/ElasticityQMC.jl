@@ -124,9 +124,13 @@ function get_functional_values(exno::Int64, Λ::Float64; nrows=4)
 end
     
 function create_tables(exno::Int64, Λ::Float64; nrows=4)
-    msg1, msg2, L, L_det, pcg_its, elapsed = get_functional_values(exno, Λ, nrows)
+    msg1, msg2, L, L_det, pcg_its, elapsed = get_functional_values(exno, Λ, 
+                                                                   nrows)
     println(msg1)
     println(msg2)
+    for k = 1:nrows
+        N = size(L[k], 2)
+        EL = sum(L[k], dims=2) / N
 
 
 end

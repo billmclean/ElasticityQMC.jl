@@ -26,8 +26,8 @@ function PDEStore(mesh::FEMesh, conforming::Bool, Λ::Float64,
                     pcg_tol, pcg_maxits, wkspace)
 end
 
-function random_solve(bilinear_forms::Dict, pstore::PDEStore)
-    (; dof, solver, b_free, P, tol, maxits, wkspace) = pstore
+function random_solve!(bilinear_forms::Dict, pstore::PDEStore)
+    (; dof, solver, b_free, u_free_det, P, tol, maxits, wkspace) = pstore
     A_free, _ = assemble_matrix(dof, bilinear_forms, 2)
     if solver == :direct
         u_free = A_free \ b_free
@@ -43,14 +43,16 @@ end
 function L_functional(u_free::Vector{Float64}, dof::DOF)
     num_free, num_fixed = dof.num_free, dof.num_fixed
     u2h = zeros(num_free + num_fixed) # 2nd component of uh
-    u2h[1:num_free] .= u_free[num_free+k]
+    for k = 1:num_free
+        u2h[k] = u_free[num_free+k]
+    end
     L = average_field(u2h, "Omega", dof)
     return L
 end
 
-function integrand_random_K(z::AVec64, μ::Function, ∇μ::Function,
-                            pstore::PDEStore)
-    (; conforming, Λ, dof, u_free, b_free, tol, maxits) = pstore
+function integrand_random_K!(z::AVec64, μ::Function, ∇μ::Function,
+                            pstore::PDEStore, istore::InterpolationStore)
+    (; conforming, Λ, dof, b_free, tol, maxits) = pstore
     K_ = interpolated_K!(z, istore, Λ)
     K = (x₁, x₂) -> K_(x₁, x₂)
     if conforming
@@ -64,9 +66,31 @@ function integrand_random_K(z::AVec64, μ::Function, ∇μ::Function,
                                           (El.∫∫μ_∇u_colon_∇v!, μ),
                                           (El.correction!, ∇μ)])
     end
-    u_free, num_its = random_solve(bilinear_forms, pstore)
-    L_functional(u_free, dof)
+    u_free, num_its = random_solve!(bilinear_forms, pstore)
+    L, _ = L_functional(u_free, dof)
+    return L, num_its
 end
 
-function integrand_random_K_μ()
+function integrand_random_K_μ!(y::AVec64, z::AVec64, 
+                               pstore::PDEStore, istore::InterpolationStore)
+    (; conforming, Λ, dof) = pstore
+    K_ = interpolated_K!(z, istore, Λ)
+    K = (x₁, x₂) -> K_(x₁, x₂)
+    μ_, ∂₁μ, ∂₂μ = interpolated_μ!(y, istore)
+    μ = (x₁, x₂) -> μ_(x₁, x₂)
+    if conforming
+        λ(x₁, x₂) = K(x₁, x₂) - μ(x₁, x₂)
+        El = SimpleFiniteElements.Elasticity
+        bilinear_forms = Dict("Omega" => [(El.∫∫λ_div_u_div_v!, λ),
+                                          (El.∫∫2μ_εu_εv!, μ)])
+    else
+        El = SimpleFiniteElements.NonConformingElasticity
+        ∇μ(x₁, x₂) = SA[ ∂₁μ(x₁, x₂), ∂₂μ(x₁, x₂) ]
+        bilinear_forms = Dict("Omega" => [(El.∫∫a_div_u_div_v!, K),
+                                          (El.∫∫μ_∇u_colon_∇v!, μ),
+                                          (El.correction!, ∇μ)])
+    end
+    u_free, num_its = random_solve!(bilinear_forms, pstore)
+    L, _ = L_functional(u_free, dof)
+    return L, num_its
 end

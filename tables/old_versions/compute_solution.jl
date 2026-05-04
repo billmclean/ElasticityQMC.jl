@@ -206,5 +206,4 @@ function create_tables(exno::Int64, Λ::Float64; nrows=4)
         N = size(L[k], 2)
         EL = sum(L[k], dims=2) / N
     end
-
 end

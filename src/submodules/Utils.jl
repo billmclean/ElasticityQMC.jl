@@ -1,6 +1,6 @@
 module Utils
 
-import ..Vec64, ..Mat64
+import ..Vec64, ..Mat64, ..soln_filename, ..save_soln
 using ArgCheck
 using LinearAlgebra
 using JLD2
@@ -89,12 +89,12 @@ end
 
 function extrapolate!(xtable::Matrix{Float64}, rate::Int64)
     m, n = size(xtable)
-    correction = zeros(m,n)
+    correction = zeros(m-1,n-1)
     pow = 2^rate
     for j = 2:n
         for i = j:m
-            correction[i,j] = (xtable[i,j-1] - xtable[i-1,j-1]) / ( pow - 1)
-            xtable[i,j] = xtable[i,j-1] + correction[i,j]
+            correction[i-1,j-1] = (xtable[i,j-1] - xtable[i-1,j-1]) / ( pow - 1)
+            xtable[i,j] = xtable[i,j-1] + correction[i-1,j-1]
         end
         pow *= 2^rate
     end
@@ -111,6 +111,18 @@ function check_rates(xtable::Matrix{Float64})
         end
     end
     return rate
+end
+
+function soln_filename(exno::Int64, Λ::Float64, ngrids::Int64, QMC_levels::Int64)
+    return "example$(exno)_$(Λ)_G$(ngrids)_L$(QMC_levels).jld2"
+end
+
+function save_soln(exno::Int64, choices, L::Matrix{Vector{Float64}}, 
+        elapsed::Vector{Float64}, FEM_dof::Vector{Int64}, FEM_h::Vector{Float64},
+        Nvals::Vector{Int64})
+    (; Λ, ngrids, QMC_levels) = choices
+    soln_file = soln_filename(exno, Λ, ngrids, QMC_levels)
+    jldsave(soln_file; choices, L, elapsed, FEM_dof, FEM_h, Nvals)
 end
 
 end # module

@@ -9,8 +9,11 @@ import SparseArrays
 export IdxPair, PDEStore, InterpolationStore
 export SPOD_points, pcg!, extrapolate!, extrapolate, check_rates
 export double_indices, interpolated_K!, interpolated_μ!
-export integrand_init!, integrand!, slow_integrand!
-export simulations!, slow_simulations!
+export slow_integrand!
+#export slow_simulations!
+export integrand_random_K!, integrand_random_K_μ!, simulations_random_K!
+export simulations_random_K_μ!
+export soln_filename, save_soln
 
 const IdxPair = Tuple{Int64, Int64}
 const Vec64 = Vector{Float64}
@@ -51,6 +54,8 @@ function pcg! end
 function extrapolate! end
 function extrapolate end
 function check_rates end
+function soln_filename end
+function save_soln end
 include("submodules/Utils.jl")
 
 function double_indices end
@@ -58,12 +63,13 @@ function interpolated_K! end
 function interpolated_μ! end
 include("submodules/InterpolatedCoefs.jl")
 
-function integrand_init! end
-function integrand! end
+function integrand_random_K! end
+function integrand_random_K_μ! end
 function slow_integrand! end
 include("submodules/PDE.jl")
 
-function simulations! end
+function simulations_random_K! end
+function simulations_random_K_μ! end
 function slow_simulations! end
 include("submodules/QMC.jl")
 

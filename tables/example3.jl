@@ -5,8 +5,8 @@ using Printf
 using JLD2
 
 choices = (
-#           Λ = 1.0,
-           Λ = 1_000.0,
+           Λ = 1.0,
+#           Λ = 1_000.0,
            ngrids = 5,
            QMC_levels = 6,
            conforming_elements = false,
@@ -17,6 +17,7 @@ choices = (
            h_coarse = 0.2,
            n = 15,
            α = 2.0,
+           use_fft = false,
            N_std = 256, # used for K and μ
            N_hi  = 512, # used for ∇μ
           )
@@ -39,10 +40,12 @@ end
 
 # Interpolation scheme
 
-(; n, α, N_std, N_hi) = choices
+(; n, α, use_fft, N_std, N_hi) = choices
 
 idx = double_indices(n)
-istore = InterpolationStore(idx, α, (N_std, N_std), (N_hi, N_hi))
+if use_fft
+    istore = InterpolationStore(idx, α, (N_std, N_std), (N_hi, N_hi))
+end
 
 # QMC parameters
 
@@ -62,15 +65,21 @@ L = Matrix{Vector{Float64}}(undef, ngrids, QMC_levels)
 elapsed = zeros(ngrids)
 FEM_dof = zeros(Int64, ngrids)
 
-@printf("\nPerfoming FEM/QMC calculations ...\n")
+@printf("\nPerforming FEM/QMC calculations ...\n")
 for grid = 1:ngrids
     @printf("\t%d. h = %0.4f: ", grid, FEM_h[grid])
     start = time()
     pstore = PDEStore(mesh[grid], conforming_elements, Λ, μ, ∇μ, f, solver,
                       pcg_tol, pcg_maxits)
     FEM_dof[grid] = pstore.dof.num_free
-    for l = 1:QMC_levels
-        L[grid,l], _ = simulations_random_K_μ!(pts[l], pstore, istore)
+    if use_fft
+        for l = 1:QMC_levels
+            L[grid,l], _ = simulations_random_K_μ!(pts[l], pstore, istore)
+        end
+    else
+        for l = 1:QMC_levels
+            L[grid,l], _ = slow_simulations_random_K_μ!(pts[l], α, idx, pstore)
+        end
     end
     elapsed[grid] = time() - start
     @printf("%8.4f seconds\n", elapsed[grid])

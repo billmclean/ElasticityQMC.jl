@@ -1,9 +1,10 @@
 module QMC
 
 import ..Mat64, ..PDEStore, ..InterpolationStore, ..IdxPair,
-       ..slow_integrand!,
        ..integrand_random_K!, ..integrand_random_K_μ!, 
-       ..simulations_random_K!, ..simulations_random_K_μ!
+       ..slow_integrand_random_K_μ!,
+       ..simulations_random_K!, ..simulations_random_K_μ!,
+       ..slow_simulations_random_K_μ!
 import SimpleFiniteElements: FEMesh
 using LinearAlgebra
 
@@ -56,6 +57,28 @@ function simulations_random_K_μ!(pts::Mat64,
     return L, pcg_its
 end
 
+function slow_simulations_random_K_μ!(pts::Mat64, α::Float64, 
+                                      idx::Vector{IdxPair}, pstore::PDEStore)
+    blas_threads = BLAS.get_num_threads()
+    BLAS.set_num_threads(1)
+    s, N = size(pts)
+    s₁ = s₂ = s ÷ 2
+    chunks = collect(Iterators.partition(1:N, N ÷ Threads.nthreads()))
+    L = zeros(N)
+    pcg_its = zeros(Int64, N)
+    Threads.@threads for chunk in chunks
+#    for chunk in chunks
+	pstore_local = deepcopy(pstore)
+	for l in chunk
+	    y = view(pts, 1:s₁, l)
+	    z = view(pts, s₁+1:s₁+s₂, l)
+	    L[l], pcg_its[l] = slow_integrand_random_K_μ!(y, z, α, idx,
+                                                          pstore_local)
+	end
+    end
+    BLAS.set_num_threads(blas_threads)
+    return L, pcg_its
+end
 #function slow_simulations!(pts::Mat64, α::Float64, Λ::Float64, 
 #	                   idx::Vector{IdxPair}, f::Function, pstore::PDEStore)
 #    Φ_det = integrand_init!(pstore, Λ, f)

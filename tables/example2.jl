@@ -63,7 +63,7 @@ L = Matrix{Vector{Float64}}(undef, ngrids, QMC_levels)
 elapsed = zeros(ngrids)
 FEM_dof = zeros(Int64, ngrids)
 
-@printf("\nPerfoming FEM/QMC calculations ...\n")
+@printf("\nPerforming FEM/QMC calculations ...\n")
 for grid = 1:ngrids
     @printf("\t%d. h = %0.4f: ", grid, FEM_h[grid])
     start = time()

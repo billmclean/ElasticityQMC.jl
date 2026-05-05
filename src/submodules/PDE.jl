@@ -5,12 +5,14 @@ import SimpleFiniteElements.FEM: average_field
 import LinearAlgebra: BLAS, cholesky
 
 import ..PDEStore, ..InterpolationStore, ..extrapolate!, ..pcg!
-import ..Vec64, ..Mat64, ..AVec64, ..SA, ..DOF, ..SparseCholeskyFactor, ..IdxPair
+import ..Vec64, ..Mat64, ..AVec64, ..SA, ..DOF, ..SparseCholeskyFactor, 
+       ..IdxPair
 import ..interpolated_K!, ..interpolated_μ!
 import ..InterpolatedCoefs: slow_K, slow_μ, slow_∂₁μ, slow_∂₂μ
 
-import ..slow_integrand!
-import ..integrand_random_K!, ..integrand_random_K_μ!
+#import ..slow_integrand!
+import ..integrand_random_K!, ..integrand_random_K_μ!, 
+       ..slow_integrand_random_K_μ!
 
 function PDEStore(mesh::FEMesh, conforming::Bool, Λ::Float64, 
                   μ₀::Function, ∇μ₀::Function, f::Function, 
@@ -99,6 +101,35 @@ function integrand_random_K_μ!(y::AVec64, z::AVec64,
                                           (El.∫∫2μ_εu_εv!, μ)])
     else
         El = SimpleFiniteElements.NonConformingElasticity
+        ∇μ(x₁, x₂) = SA[ ∂₁μ(x₁, x₂), ∂₂μ(x₁, x₂) ]
+        bilinear_forms = Dict("Omega" => [(El.∫∫a_div_u_div_v!, K),
+                                          (El.∫∫μ_∇u_colon_∇v!, μ),
+                                          (El.correction!, ∇μ)])
+    end
+    u_free, num_its = random_solve!(bilinear_forms, pstore)
+    L, _ = L_functional(u_free, dof)
+    return L, num_its
+end
+
+"""
+    slow_integrand_random_K_μ!(y, z, α, idx, pstore)
+
+Computes `K` and `μ` directly, without using FFT and interpolation.
+"""
+function slow_integrand_random_K_μ!(y::AVec64, z::AVec64, α::Float64, 
+                                    idx::Vector{IdxPair}, pstore::PDEStore)
+    (; conforming, Λ, dof) = pstore
+    K(x₁, x₂) = slow_K(x₁, x₂, y, α, Λ, idx)
+    μ(x₁, x₂) = slow_μ(x₁, x₂, z, α, idx)
+    if conforming
+        El = SimpleFiniteElements.Elasticity
+        λ(x₁, x₂) = K(x₁, x₂) - μ(x₁, x₂)
+        bilinear_forms = Dict("Omega" => [(El.∫∫λ_div_u_div_v!, λ),
+                                          (El.∫∫2μ_εu_εv!, μ)])
+    else
+        El = SimpleFiniteElements.NonConformingElasticity
+	∂₁μ(x₁, x₂) = slow_∂₁μ(x₁, x₂, z, α, idx)
+	∂₂μ(x₁, x₂) = slow_∂₂μ(x₁, x₂, z, α, idx)
         ∇μ(x₁, x₂) = SA[ ∂₁μ(x₁, x₂), ∂₂μ(x₁, x₂) ]
         bilinear_forms = Dict("Omega" => [(El.∫∫a_div_u_div_v!, K),
                                           (El.∫∫μ_∇u_colon_∇v!, μ),

@@ -32,25 +32,27 @@ M₂ = 3 * high_resolution[2]
 x₁ = range(0, 1, length=M₁)
 x₂ = range(0, 1, length=M₂)
 
-K_error = zeros(M₁, M₂)
-μ_error = zeros(M₁, M₂)
-∂₁μ_error = zeros(M₁, M₂)
-∂₂μ_error = zeros(M₁, M₂)
+K_error = 0.0
+μ_error = 0.0
+∂₁μ_error = 0.0
+∂₂μ_error = 0.0
 Threads.@threads for j in eachindex(x₂)
     for i in eachindex(x₁)
-	K_error[i,j] = K(x₁[i], x₂[j]) - slow_K(x₁[i], x₂[j], z, α, Λ, idx) 
-	μ_error[i,j] =  μ(x₁[i], x₂[j]) - slow_μ(x₁[i], x₂[j], y, α, idx) 
-	∂₁μ_error[i,j] = ∂₁μ(x₁[i], x₂[j]) - slow_∂₁μ(x₁[i], x₂[j], 
-						      y, α, idx) 
-	∂₂μ_error[i,j] = ∂₂μ(x₁[i], x₂[j]) - slow_∂₂μ(x₁[i], x₂[j], 
-						      y, α, idx) 
+	K_error = max(K_error, abs(
+                      K(x₁[i], x₂[j]) - slow_K(x₁[i], x₂[j], z, α, Λ, idx)))
+	μ_error = max(μ_error, abs( 
+                      μ(x₁[i], x₂[j]) - slow_μ(x₁[i], x₂[j], y, α, idx)))
+	∂₁μ_error = max(∂₁μ_error, abs(
+                      ∂₁μ(x₁[i], x₂[j]) - slow_∂₁μ(x₁[i], x₂[j], y, α, idx)))
+	∂₂μ_error = max(∂₂μ_error, abs(
+                      ∂₂μ(x₁[i], x₂[j]) - slow_∂₂μ(x₁[i], x₂[j], y, α, idx)))
     end
 end
 
 @printf("Max interpolations errors for\n")
-@printf("\t       K: %0.3e\n", maximum(abs, K_error))
-@printf("\t       μ: %0.3e\n", maximum(abs, μ_error))
-@printf("\t     ∂₁μ: %0.3e\n", maximum(abs, ∂₁μ_error))
-@printf("\t     ∂₂μ: %0.3e\n", maximum(abs, ∂₂μ_error))
+@printf("\t       K: %0.3e\n", K_error)
+@printf("\t       μ: %0.3e\n", μ_error)
+@printf("\t     ∂₁μ: %0.3e\n", ∂₁μ_error)
+@printf("\t     ∂₂μ: %0.3e\n", ∂₂μ_error)
 
 end # let

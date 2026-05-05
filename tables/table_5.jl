@@ -3,17 +3,18 @@ using Printf
 using JLD2
 
 exno = 3
-Λ = 1_000.0
-#Λ = 1.0
+#Λ = 1_000.0
+Λ = 1.0
 ngrids = 5
 QMC_levels = 6
-soln_file = soln_filename(exno, Λ, ngrids, QMC_levels)
+conforming_elements = false
+use_fft = false
+soln_file = soln_filename(exno, Λ, ngrids, QMC_levels, conforming_elements,
+                          use_fft)
 D = load(soln_file)
 
 choices = D["choices"]
-@assert choices.Λ == Λ
-@assert choices.conforming_elements == false
-(; ngrids, QMC_levels) = choices
+(; ngrids, QMC_levels, conforming_elements, use_fft) = choices
 FEM_h = D["FEM_h"]
 
 # Compute expected values of L
@@ -59,12 +60,8 @@ for row = 1:ngrids-1
     @printf("\n")
 end
 
-ELx = zeros(QMC_levels)
-for l in eachindex(ELx)
-    xtable[:,1] = EL[:,l]
-    extrapolate!(xtable, 2)
-    ELx[l] = xtable[ngrids, ngrids]
-end
+EL, ELx = sum_then_extrapolate(L)
+#Lx, ELx = extrapolate_then_sum(L)
 @printf("\nConvergence w.r.t. N:\n\n")
 err = zeros(QMC_levels)
 err[1] = ELx[1] - ELx[end]

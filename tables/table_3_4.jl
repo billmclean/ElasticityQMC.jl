@@ -3,8 +3,8 @@ using Printf
 using JLD2
 
 exno = 2
-#Λ = 1_000.0
-Λ = 1.0
+Λ = 1_000.0
+#Λ = 1.0
 ngrids = 5
 QMC_levels = 6
 soln_file = soln_filename(exno, Λ, ngrids, QMC_levels)
@@ -59,13 +59,9 @@ for row = 1:ngrids-1
     @printf("\n")
 end
 
-ELx = zeros(QMC_levels)
-for l in eachindex(ELx)
-    xtable[:,1] = EL[:,l]
-    extrapolate!(xtable, 2)
-    ELx[l] = xtable[ngrids, ngrids]
-end
 @printf("\nConvergence w.r.t. N:\n\n")
+EL, ELx = sum_then_extrapolate(L)
+#Lx, ELx = extrapolate_then_sum(L)
 err = zeros(QMC_levels)
 err[1] = ELx[1] - ELx[end]
 @printf("%5d &%12.8f &%10.2e\n", Nvals[1], ELx[1], err[1])

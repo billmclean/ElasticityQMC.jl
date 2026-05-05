@@ -1,6 +1,7 @@
 module Utils
 
-import ..Vec64, ..Mat64, ..soln_filename, ..save_soln
+import ..Vec64, ..Mat64, ..soln_filename, ..save_soln, 
+       ..sum_then_extrapolate, ..extrapolate_then_sum
 using ArgCheck
 using LinearAlgebra
 using JLD2
@@ -113,16 +114,72 @@ function check_rates(xtable::Matrix{Float64})
     return rate
 end
 
-function soln_filename(exno::Int64, Λ::Float64, ngrids::Int64, QMC_levels::Int64)
-    return "example$(exno)_$(Λ)_G$(ngrids)_L$(QMC_levels).jld2"
+function soln_filename(exno::Int64, Λ::Float64, ngrids::Int64, 
+                       QMC_levels::Int64, conforming_elements::Bool,
+                       use_fft::Bool)
+    s = ""
+    if conforming_elements
+        s = s + "c"
+    end
+    if use_fft
+        s = s + "f"
+    end
+    return "example$(exno)_$(Λ)_G$(ngrids)_L$(QMC_levels)_$s.jld2"
 end
 
 function save_soln(exno::Int64, choices, L::Matrix{Vector{Float64}}, 
-        elapsed::Vector{Float64}, FEM_dof::Vector{Int64}, FEM_h::Vector{Float64},
-        Nvals::Vector{Int64})
-    (; Λ, ngrids, QMC_levels) = choices
-    soln_file = soln_filename(exno, Λ, ngrids, QMC_levels)
+        elapsed::Vector{Float64}, FEM_dof::Vector{Int64}, 
+        FEM_h::Vector{Float64}, Nvals::Vector{Int64})
+    (; Λ, ngrids, QMC_levels, conforming_elements, use_fft) = choices
+    soln_file = soln_filename(exno, Λ, ngrids, QMC_levels, conforming_elements,
+                              use_fft)
     jldsave(soln_file; choices, L, elapsed, FEM_dof, FEM_h, Nvals)
+end
+
+function sum_then_extrapolate(L::Matrix{Vector{Float64}})
+    # First sum to compute expected values of L
+    EL = zeros(size(L))
+    ngrids = size(L, 1)
+    QMC_levels = size(L, 2)
+    for l = 1:QMC_levels, grid = 1:ngrids
+        N = length(L[grid,l])
+        EL[grid,l] = sum(L[grid,l]) / N
+    end
+    # Then extrapolate
+    ELx = zeros(QMC_levels)
+    xtable = zeros(ngrids, ngrids)
+    for l in eachindex(ELx)
+        xtable[:,1] = EL[:,l]
+        extrapolate!(xtable, 2)
+        ELx[l] = xtable[ngrids, ngrids]
+    end
+    return EL, ELx
+end
+
+function extrapolate_then_sum(L::Matrix{Vector{Float64}})
+    #  First extrapolate for each
+    ngrids = size(L, 1)
+    QMC_levels = size(L, 2)
+    Lx = Vector{Vector{Float64}}(undef, QMC_levels)
+    xtable = zeros(ngrids, ngrids)
+    for l = 1:QMC_levels
+        N = length(L[1,l])
+        Lx[l] = zeros(N)
+        for k = 1:N
+            for grid = 1:ngrids
+                xtable[grid,1] = L[grid,l][k]
+                extrapolate!(xtable, 2)
+                Lx[l][k] = xtable[ngrids, ngrids]
+            end
+        end
+    end
+    # Then sum to compute expected values of Lx
+    ELx = zeros(QMC_levels)
+    for l in eachindex(ELx)
+        N = length(Lx[l])
+        ELx[l] = sum(Lx[l]) / N
+    end
+    return Lx, ELx
 end
 
 end # module

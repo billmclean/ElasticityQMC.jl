@@ -1,14 +1,19 @@
 module Utils
 
-import ..Vec64, ..Mat64, ..soln_filename, ..save_soln, 
+import ..SPOD_points, ..pcg!, ..extrapolate!, ..extrapolate, ..check_rates,
+       ..soln_filename, ..save_soln, 
        ..sum_then_extrapolate, ..extrapolate_then_sum
-using ArgCheck
-using LinearAlgebra
-using JLD2
+import ..Vec64, ..Mat64
+import ArgCheck: @argcheck
+import LinearAlgebra: dot, norm
+import JLD2: load, jldsave
 
-# Extending dummy functions from ElasticityQMC.
-import ..SPOD_points, ..pcg!, ..extrapolate!, ..extrapolate, ..check_rates
+"""
+    SPOD_points(s, path)
 
+Reads QMC points of dimension `s` from `path` (in our case the file
+`qmc_points/SPOD_dim256.jld2`).
+"""
 function SPOD_points(s::Integer, path::String)
     D = load(path)
     if s > 256
@@ -24,6 +29,14 @@ function SPOD_points(s::Integer, path::String)
     return Nvals, pts
 end
 
+"""
+    pcg!(x, A, b, P, tol, maxits, wkspace) 
+
+Preconditioned conjugate gradient solver for an `n×n` linear system `Ax=b`.  
+The iteration stops when the 2-norm of the relative residual is smaller than 
+`tol`, or when the number of iterations exceeds `maxits`.  The `wkspace`
+array must be `n×4`.
+"""
 function pcg!(x::Vector{T}, A::AbstractMatrix{T}, b::Vector{T}, P, tol::T,
         maxits::Integer, wkspace::Matrix{T}) where T <: AbstractFloat
     n = lastindex(x)
@@ -35,7 +48,8 @@ function pcg!(x::Vector{T}, A::AbstractMatrix{T}, b::Vector{T}, P, tol::T,
     Ap = view(wkspace, :, 3)
     w  = view(wkspace, :, 4)
     r .= b - A*x
-    if norm(r) < tol
+    tol_b = tol * norm(b)
+    if norm(r) < tol_b
         return 0 # zero iterations
     end
     w .= P \ r
@@ -46,7 +60,7 @@ function pcg!(x::Vector{T}, A::AbstractMatrix{T}, b::Vector{T}, P, tol::T,
         α = w_dot_r / dot(p, Ap)
         r .-= α * Ap
         x .+= α * p
-        if norm(r) < tol
+        if norm(r) < tol_b
             return j
         end
         w .= P \ r
@@ -88,6 +102,11 @@ function extrapolate(Φ::Matrix{Float64}, rate::Int64)
     return Φ_extrap, error_estimate
 end
 
+"""
+    extrapolate!(xtable, rate)
+
+Saves the complete extrapolation table.
+"""
 function extrapolate!(xtable::Matrix{Float64}, rate::Int64)
     m, n = size(xtable)
     correction = zeros(m-1,n-1)
@@ -102,6 +121,12 @@ function extrapolate!(xtable::Matrix{Float64}, rate::Int64)
     return correction
 end
 
+"""
+    check_rates(xtable)
+
+Computes the empirical convergence rates for the columns of the extrapolation
+table.
+"""
 function check_rates(xtable::Matrix{Float64})
     m, n = size(xtable)
     rate = zeros(m, n)
@@ -114,19 +139,30 @@ function check_rates(xtable::Matrix{Float64})
     return rate
 end
 
+"""
+    soln_filename(exno, Λ, ngrids, QMC_levels, conforming_elements, use_fft)
+
+Returns the filename for the data file corresponding to the argument list.
+"""
 function soln_filename(exno::Int64, Λ::Float64, ngrids::Int64, 
                        QMC_levels::Int64, conforming_elements::Bool,
                        use_fft::Bool)
     s = ""
     if conforming_elements
-        s = s + "c"
+        s = s + "_c"
     end
     if use_fft
-        s = s + "f"
+        s = s + "_f"
     end
-    return "example$(exno)_$(Λ)_G$(ngrids)_L$(QMC_levels)_$s.jld2"
+    return "example$(exno)_$(Λ)_G$(ngrids)_L$(QMC_levels)$s.jld2"
 end
 
+"""
+    save_soln(exno, choices, L, elapsed, FEM_dof, FEM_h, Nvals)
+
+Saves the linear functional values and related quantities to a `.jld2` data 
+file.
+"""
 function save_soln(exno::Int64, choices, L::Matrix{Vector{Float64}}, 
         elapsed::Vector{Float64}, FEM_dof::Vector{Int64}, 
         FEM_h::Vector{Float64}, Nvals::Vector{Int64})
@@ -136,6 +172,12 @@ function save_soln(exno::Int64, choices, L::Matrix{Vector{Float64}},
     jldsave(soln_file; choices, L, elapsed, FEM_dof, FEM_h, Nvals)
 end
 
+"""
+    sum_then_extrapolate(L)
+
+Sumes to obtain the expected values of the functional for each mesh, and
+then extrapolates.
+"""
 function sum_then_extrapolate(L::Matrix{Vector{Float64}})
     # First sum to compute expected values of L
     EL = zeros(size(L))
@@ -156,6 +198,13 @@ function sum_then_extrapolate(L::Matrix{Vector{Float64}})
     return EL, ELx
 end
 
+"""
+    extrapolate_then_sum(L)
+
+Extrapolates the functional values for each QMC points, and then sums to
+obtain the expected values. Should give the same result `ELx` as
+`sum_then_extrapolate`.
+"""
 function extrapolate_then_sum(L::Matrix{Vector{Float64}})
     #  First extrapolate for each
     ngrids = size(L, 1)

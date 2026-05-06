@@ -7,7 +7,6 @@ import LinearAlgebra.BLAS: scal!
 import SpecialFunctions: zeta
 using ArgCheck
 
-# Extending dummy functions from ElasticityQMC.
 import ..double_indices, ..interpolated_K!, ..interpolated_μ!
 
 function double_indices(n::Int64)

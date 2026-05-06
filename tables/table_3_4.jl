@@ -5,28 +5,17 @@ using JLD2
 exno = 2
 Λ = 1_000.0
 #Λ = 1.0
+
+# Load already computed results
 ngrids = 5
 QMC_levels = 6
-soln_file = soln_filename(exno, Λ, ngrids, QMC_levels)
-D = load(soln_file)
+conforming_elements = false
+use_fft = false
 
-choices = D["choices"]
-@assert choices.Λ == Λ
-@assert choices.conforming_elements == false
-(; ngrids, QMC_levels) = choices
-FEM_h = D["FEM_h"]
-
-# Compute expected values of L
-EL = zeros(size(L))
-for l = 1:QMC_levels, grid = 1:ngrids
-    EL[grid,l] = sum(L[grid,l]) / Nvals[l]
-end
-
-xtable = zeros(ngrids, ngrids)
-
-l = 4
-xtable[:,1] = EL[:,l]
-Δ = extrapolate!(xtable, 2)
+soln_file = soln_filename(exno, Λ, ngrids, QMC_levels, conforming_elements,
+                          use_fft)
+@load soln_file choices  L  elapsed  FEM_dof  FEM_h  Nvals
+(; ngrids, QMC_levels, conforming_elements, use_fft) = choices
 
 @printf("Example 2 with these choices:\n")
 display(choices)
@@ -36,6 +25,18 @@ display(choices)
 for grid = 1:ngrids
     @printf("%2d  %8.5f  %6d\n", grid, FEM_h[grid], FEM_dof[grid])
 end
+
+# Compute expected values of L
+EL = zeros(size(L))
+for l = 1:QMC_levels, grid = 1:ngrids
+    EL[grid,l] = sum(L[grid,l]) / Nvals[l]
+end
+
+# Table 3: example of extrapolating the expected values
+xtable = zeros(ngrids, ngrids)
+l = 4
+xtable[:,1] = EL[:,l]
+Δ = extrapolate!(xtable, 2)
 
 @printf("\n\nRichardson extrapolation of expected values of L when N = %d\n\n",
         Nvals[l])
@@ -59,6 +60,7 @@ for row = 1:ngrids-1
     @printf("\n")
 end
 
+# Table 4: errors and convergence rates
 @printf("\nConvergence w.r.t. N:\n\n")
 EL, ELx = sum_then_extrapolate(L)
 #Lx, ELx = extrapolate_then_sum(L)

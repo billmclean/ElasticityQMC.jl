@@ -17,6 +17,7 @@ choices = (
            h_coarse = 0.2,
            n = 22,
            α = 2.0,
+           use_fft = false,
            N_std = 256, # used for K and μ
            N_hi  = 512, # used for ∇μ
           )
@@ -39,10 +40,12 @@ end
 
 # Interpolation scheme
 
-(; n, α, N_std, N_hi) = choices
+(; n, α, use_fft, N_std, N_hi) = choices
 
 idx = double_indices(n)
-istore = InterpolationStore(idx, α, (N_std, N_std), (N_hi, N_hi))
+if use_fft
+    istore = InterpolationStore(idx, α, (N_std, N_std), (N_hi, N_hi))
+end
 
 # QMC parameters
 
@@ -70,12 +73,19 @@ for grid = 1:ngrids
     pstore = PDEStore(mesh[grid], conforming_elements, Λ, μ, ∇μ, f, solver,
                       pcg_tol, pcg_maxits)
     FEM_dof[grid] = pstore.dof.num_free
-    for l = 1:QMC_levels
-        L[grid,l], _ = simulations_random_K!(pts[l], μ, ∇μ, pstore, istore)
+    if use_fft
+        for l = 1:QMC_levels
+            L[grid,l], _ = simulations_random_K!(pts[l], μ, ∇μ, pstore, istore)
+        end
+    else
+        for l = 1:QMC_levels
+            L[grid,l], _ = simulations_random_K!(pts[l], α, μ, ∇μ, idx, pstore)
+        end
     end
     elapsed[grid] = time() - start
     @printf("%8.4f seconds\n", elapsed[grid])
 end
 @printf("\tDone!\n")
 
-save_soln(2, choices, L, elapsed, FEM_dof, FEM_h, Nvals)
+exno = 2
+save_soln(exno, choices, L, elapsed, FEM_dof, FEM_h, Nvals)

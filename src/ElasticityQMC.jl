@@ -2,19 +2,16 @@ module ElasticityQMC
 
 import SimpleFiniteElements
 import StaticArrays: SA
-#using OffsetArrays
 import FFTW
 import SparseArrays
 
 export IdxPair, PDEStore, InterpolationStore
-export SPOD_points, pcg!, extrapolate!, extrapolate, check_rates
+
+export SPOD_points, pcg!, extrapolate!, extrapolate, check_rates,
+       soln_filename, save_soln, sum_then_extrapolate, extrapolate_then_sum
 export double_indices, interpolated_K!, interpolated_μ!
-#export slow_integrand!
-#export slow_simulations!
-export integrand_random_K!, integrand_random_K_μ!, simulations_random_K!,
-       slow_integrand_random_K_μ!
-export simulations_random_K_μ!, slow_simulations_random_K_μ!
-export soln_filename, save_soln, sum_then_extrapolate, extrapolate_then_sum
+export integrand_random_K!, integrand_random_K_μ!
+export simulations_random_K!, simulations_random_K_μ!
  
 const IdxPair = Tuple{Int64, Int64}
 const Vec64 = Vector{Float64}
@@ -68,12 +65,10 @@ include("submodules/InterpolatedCoefs.jl")
 
 function integrand_random_K! end
 function integrand_random_K_μ! end
-function slow_integrand_random_K_μ! end
 include("submodules/PDE.jl")
 
 function simulations_random_K! end
 function simulations_random_K_μ! end
-function slow_simulations_random_K_μ! end
 include("submodules/QMC.jl")
 
 end # module Elasticity_QMC

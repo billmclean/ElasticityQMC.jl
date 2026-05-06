@@ -1,16 +1,19 @@
 module QMC
 
-import ..Mat64, ..PDEStore, ..InterpolationStore, ..IdxPair,
-       ..integrand_random_K!, ..integrand_random_K_μ!, 
-       ..slow_integrand_random_K_μ!,
-       ..simulations_random_K!, ..simulations_random_K_μ!,
-       ..slow_simulations_random_K_μ!
+import ..PDEStore, ..InterpolationStore, ..IdxPair
+import ..integrand_random_K!, ..integrand_random_K_μ!
+import ..simulations_random_K!, ..simulations_random_K_μ!
+import ..Mat64
 import SimpleFiniteElements: FEMesh
-using LinearAlgebra
+import LinearAlgebra: BLAS
 
-# Extending dummy functions from ElasticityQMC.
-#import ..simulations!, ..slow_simulations!
+"""
+    simulations_random_K!(pts, μ, ∇μ, pstore, istore)
 
+Computes the functional for a given set of QMC points and FEM mesh, when
+the bulk modulus `K` is random (but the shear modulus `μ` is not).  
+Evaluation of `K` is sped up by use of FFT and interpolation.
+"""
 function simulations_random_K!(pts::Mat64, μ::Function, ∇μ::Function, 
                                pstore::PDEStore, istore::InterpolationStore)
     blas_threads = BLAS.get_num_threads()
@@ -33,6 +36,41 @@ function simulations_random_K!(pts::Mat64, μ::Function, ∇μ::Function,
     return L, pcg_its
 end
 
+"""
+    simulations_random_K!(pts, α, μ, ∇μ, idx, pstore)
+
+This version evaluates the trigonometric series for the bulk modulus `K` 
+directly (that is, not using FFT and interpolation).
+"""
+function simulations_random_K!(pts::Mat64, α::Float64, 
+                               μ::Function, ∇μ::Function, 
+                               idx::Vector{IdxPair}, pstore::PDEStore)
+    blas_threads = BLAS.get_num_threads()
+    BLAS.set_num_threads(1)
+    s, N = size(pts)
+    chunks = collect(Iterators.partition(1:N, N ÷ Threads.nthreads()))
+    L = zeros(N)
+    pcg_its = zeros(Int64, N)
+    Threads.@threads for chunk in chunks
+#    for chunk in chunks
+	pstore_local = deepcopy(pstore)
+	for l in chunk
+	    z = view(pts, :, l)
+	    L[l], pcg_its[l] = integrand_random_K!(z, α, μ, ∇μ, idx,
+                                                   pstore_local)
+	end
+    end
+    BLAS.set_num_threads(blas_threads)
+    return L, pcg_its
+end
+
+"""
+    simulations_random_K_μ!(pts, pstore, istore)
+
+Computes the functional for a given set of QMC points and FEM mesh, when the
+bulk modulus `K` and the shear modulus `μ` are both random.  Evaluation of 
+`K` and `μ` are sped up by use of FFT and interpolation.
+"""
 function simulations_random_K_μ!(pts::Mat64, 
                                  pstore::PDEStore, istore::InterpolationStore)
     blas_threads = BLAS.get_num_threads()
@@ -57,8 +95,14 @@ function simulations_random_K_μ!(pts::Mat64,
     return L, pcg_its
 end
 
-function slow_simulations_random_K_μ!(pts::Mat64, α::Float64, 
-                                      idx::Vector{IdxPair}, pstore::PDEStore)
+"""
+    simulations_random_K_μ!(pts, α, idx, pstore)
+
+This version evaluates the trigonometric series for the bulk modulus `K` 
+and the shear modulus `μ` directly (that is, not using FFT and interpolation).
+"""
+function simulations_random_K_μ!(pts::Mat64, α::Float64, 
+                                 idx::Vector{IdxPair}, pstore::PDEStore)
     blas_threads = BLAS.get_num_threads()
     BLAS.set_num_threads(1)
     s, N = size(pts)
@@ -72,36 +116,12 @@ function slow_simulations_random_K_μ!(pts::Mat64, α::Float64,
 	for l in chunk
 	    y = view(pts, 1:s₁, l)
 	    z = view(pts, s₁+1:s₁+s₂, l)
-	    L[l], pcg_its[l] = slow_integrand_random_K_μ!(y, z, α, idx,
-                                                          pstore_local)
+	    L[l], pcg_its[l] = integrand_random_K_μ!(y, z, α, idx,
+                                                     pstore_local)
 	end
     end
     BLAS.set_num_threads(blas_threads)
     return L, pcg_its
 end
-#function slow_simulations!(pts::Mat64, α::Float64, Λ::Float64, 
-#	                   idx::Vector{IdxPair}, f::Function, pstore::PDEStore)
-#    Φ_det = integrand_init!(pstore, Λ, f)
-#    blas_threads = BLAS.get_num_threads()
-#    BLAS.set_num_threads(1)
-#    s, N = size(pts)
-#    s₁ = s₂ = s ÷ 2
-#    chunks = collect(Iterators.partition(1:N, N ÷ Threads.nthreads()))
-#    ngrids = length(pstore.dof)
-#    Φ = zeros(ngrids, N)
-#    pcg_its = zeros(ngrids, N)
-#    Threads.@threads for chunk in chunks
-##    for chunk in chunks
-#	pstore_local = deepcopy(pstore)
-#	for l in chunk
-#	    y = view(pts, 1:s₁, l)
-#	    z = view(pts, s₁+1:s₁+s₂, l)
-#	    Φ[:,l], pcg_its[:,l] = (
-#                slow_integrand!(y, z, α, Λ, idx, pstore_local) )
-#	end
-#    end
-#    BLAS.set_num_threads(blas_threads)
-#    return Φ, Φ_det, pcg_its
-#end
 
 end # module QMC

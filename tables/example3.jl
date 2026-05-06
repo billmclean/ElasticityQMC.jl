@@ -78,7 +78,7 @@ for grid = 1:ngrids
         end
     else
         for l = 1:QMC_levels
-            L[grid,l], _ = slow_simulations_random_K_μ!(pts[l], α, idx, pstore)
+            L[grid,l], _ = simulations_random_K_μ!(pts[l], α, idx, pstore)
         end
     end
     elapsed[grid] = time() - start

@@ -3,8 +3,8 @@ using Printf
 using JLD2
 
 exno = 3
-#Λ = 1_000.0
-Λ = 1.0
+Λ = 1_000.0
+#Λ = 1.0
 
 # Load already computed results
 ngrids = 5
@@ -35,7 +35,7 @@ end
 xtable = zeros(ngrids, ngrids)
 l = 4
 xtable[:,1] = EL[:,l]
-Δ = extrapolate!(xtable, 2)
+Δ = extrapolate!(xtable, 2, 2)
 
 @printf("\n\nRichardson extrapolation of expected values of L when N = %d\n\n",
         Nvals[l])

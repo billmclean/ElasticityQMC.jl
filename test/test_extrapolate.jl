@@ -21,7 +21,7 @@ for i = 1:m
     N *= 2
 end
 
-correction = extrapolate!(xtable, 2)
+correction = extrapolate!(xtable, 2, 2)
 @printf("\nExtrapolation table:\n")
 for i = 1:m
     for j = 1:min(i, n)
@@ -30,9 +30,9 @@ for i = 1:m
     @printf("\n")
 end
 @printf("\nCorrection terms:\n")
-for i = 2:m
+for i = 1:m-1
     @printf("%14s ", "")
-    for j = 2:min(i, n)
+    for j = 1:min(i, n-1)
         @printf("%14.4e ", correction[i,j])
     end
     @printf("\n")

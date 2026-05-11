@@ -7,7 +7,7 @@ using JLD2
 choices = (
 #           Λ = 1.0,
            Λ = 1_000.0,
-           ngrids = 5,
+           ngrids = 7,
            QMC_levels = 6,
            conforming_elements = false,
            mesh_order = 2,
@@ -83,7 +83,7 @@ for grid = 1:ngrids
         end
     end
     elapsed[grid] = time() - start
-    @printf("%8.4f seconds\n", elapsed[grid])
+    @printf("%10.4f seconds\n", elapsed[grid])
 end
 @printf("\tDone!\n")
 

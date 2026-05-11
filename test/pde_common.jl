@@ -16,7 +16,7 @@ if conforming_elements
     element_description = "conforming"
 else
     mesh_order = 2
-    ngrids = 5
+    ngrids = 7
     element_description = "non-conforming"
 end
 mesh = FEMesh(gmodel, hmax, order=mesh_order, save_msh_file=false, 
@@ -30,7 +30,7 @@ N_hi  = 512
 Λ = 1_000.0
 #Λ = 1.0
 n = 15
-pcg_tol = 1e-10
+pcg_tol = 1e-12
 pcg_maxits = 100
 idx = double_indices(n)
 s = lastindex(idx)
@@ -40,7 +40,7 @@ Solving BVP with $element_description finite elements.
 Solver is $solver, tol = $pcg_tol.
 Finest mesh has h = $h_string.
 Using s = $s with α = $α, Λ = $Λ.
-Interpolating K and μ using $N_std x $N_std spatial grid."""
+"""
 println(msg)
 
 f(x, y) = SA[1-y^2, 2x-20.0]

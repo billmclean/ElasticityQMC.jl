@@ -5,14 +5,14 @@ using Printf
 using JLD2
 
 choices = (
-           Λ = 1.0,
-#           Λ = 1_000.0,
-           ngrids = 5,
+#           Λ = 1.0,
+           Λ = 1_000.0,
+           ngrids = 6,
            QMC_levels = 6,
            conforming_elements = false,
            mesh_order = 2,
            solver = :pcg,
-           pcg_tol = 1e-10,
+           pcg_tol = 1e-12,
            pcg_maxits = 100,
            h_coarse = 0.2,
            n = 15,
@@ -82,7 +82,7 @@ for grid = 1:ngrids
         end
     end
     elapsed[grid] = time() - start
-    @printf("%8.4f seconds\n", elapsed[grid])
+    @printf("%10.4f seconds\n", elapsed[grid])
 end
 @printf("\tDone!\n")
 

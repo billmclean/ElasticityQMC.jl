@@ -107,9 +107,9 @@ end
 
 Saves the complete extrapolation table.
 """
-function extrapolate!(xtable::Matrix{Float64}, rate::Int64)
+function extrapolate!(xtable::Matrix{T}, rate::Int64) where T <: AbstractFloat
     m, n = size(xtable)
-    correction = zeros(m-1,n-1)
+    correction = zeros(T, m-1,n-1)
     pow = 2^rate
     for j = 2:n
         for i = j:m

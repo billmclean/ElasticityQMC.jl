@@ -107,7 +107,7 @@ function integrand_random_K!(z::AVec64, μ::Function, ∇μ::Function,
 end
 
 """
-    integrand_random_K!(y, z, α, μ, ∇μ, idx, pstore)
+    integrand_random_K!(z, α, μ, ∇μ, idx, pstore)
 
 Computes `K` directly, without using FFT and interpolation.
 """

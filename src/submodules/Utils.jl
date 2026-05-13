@@ -5,7 +5,7 @@ import ..SPOD_points, ..pcg!, ..extrapolate!, ..extrapolate, ..check_rates,
        ..sum_then_extrapolate, ..extrapolate_then_sum
 import ..Vec64, ..Mat64
 import ArgCheck: @argcheck
-import LinearAlgebra: dot, norm
+import LinearAlgebra: dot, norm, mul!
 import JLD2: load, jldsave
 
 """
@@ -72,51 +72,31 @@ function pcg!(x::Vector{T}, A::AbstractMatrix{T}, b::Vector{T}, P, tol::T,
 end
 
 """
-    extrapolate!(Φ, rate) -> error_estimate
+    extrapolate!(xtable, r, s)
 
-Applies Richardson extrapolation to the vector `Φ`.
+Computes a Richardson extrapolation table.  On entry, the first column
+`xtable[:,1]` holds approximations to a quantity `Φ` with the error
+expansion
 
-Assumes `Φ[1]` has an error expansion in powers of `N^(-rate)` and
-that `Φ[j+1]` is obtained from `Φ[j]` by doubling `N`.
-On exit, `Φ[1]` holds the final extrapolated value obtained from
-`Φ`, and `error_estimate` holds the final correction that led to
-the value of `Φ`.
+    Φ = xtable[i,1] + c₁/Nᵢʳ + c₂/Nᵢʳ⁺ˢ + c₃/Nᵢʳ⁺²ˢ + ⋯
+
+with `Nᵢ = 2ⁱ⁻¹N₁`.  On exit, the extrapolated values satisfy
+
+    Φ = xtable[i,2] + O(1/Nᵢ^ʳ⁺ˢ)
+      = xtable[i,3] + O(1/Nᵢ^ʳ⁺²ˢ)
+
+and so on.
 """
-function extrapolate!(Φ::Vec64, rate::Int64)
-    n = lastindex(Φ)
-    pow = 2^rate
-    correction = 0.0
-    for step = 1:n-1
-        for j = 1:n-step
-            correction = (Φ[j+1] - Φ[j]) / (pow - 1)
-            Φ[j] = Φ[j+1] + correction
-        end
-        pow *= 2^rate
-    end
-    return correction
-end
-
-function extrapolate(Φ::Matrix{Float64}, rate::Int64)
-    Φ_extrap = copy(Φ)
-    error_estimate = extrapolate!(Φ_extrap, rate)
-    return Φ_extrap, error_estimate
-end
-
-"""
-    extrapolate!(xtable, rate)
-
-Saves the complete extrapolation table.
-"""
-function extrapolate!(xtable::Matrix{Float64}, rate::Int64)
+function extrapolate!(xtable::Matrix{Float64}, r::Int64, s::Int64)
     m, n = size(xtable)
     correction = zeros(m-1,n-1)
-    pow = 2^rate
+    pow = 2^r
     for j = 2:n
         for i = j:m
             correction[i-1,j-1] = (xtable[i,j-1] - xtable[i-1,j-1]) / ( pow - 1)
             xtable[i,j] = xtable[i,j-1] + correction[i-1,j-1]
         end
-        pow *= 2^rate
+        pow *= 2^s
     end
     return correction
 end
@@ -187,14 +167,18 @@ function sum_then_extrapolate(L::Matrix{Vector{Float64}})
         N = length(L[grid,l])
         EL[grid,l] = sum(L[grid,l]) / N
     end
-    # Then extrapolate
+    # Then extrapolate 
     ELx = zeros(QMC_levels)
     xtable = zeros(ngrids, ngrids)
-    for l in eachindex(ELx)
+    for l = 1:QMC_levels-1
         xtable[:,1] = EL[:,l]
-        extrapolate!(xtable, 2)
-        ELx[l] = xtable[ngrids, ngrids]
+        extrapolate!(xtable, 2, 2)
+        ELx[l] = xtable[ngrids-1, 4] # Use up to second-finest grid
     end
+    l = QMC_levels
+    xtable[:,1] = EL[:,l]
+    extrapolate!(xtable, 2, 2)
+    ELx[l] = xtable[ngrids, 4] # Use finest grid for reference solution
     return EL, ELx
 end
 
@@ -217,7 +201,7 @@ function extrapolate_then_sum(L::Matrix{Vector{Float64}})
         for k = 1:N
             for grid = 1:ngrids
                 xtable[grid,1] = L[grid,l][k]
-                extrapolate!(xtable, 2)
+                extrapolate!(xtable, 2, 2)
                 Lx[l][k] = xtable[ngrids, ngrids]
             end
         end

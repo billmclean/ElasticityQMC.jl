@@ -94,7 +94,7 @@ tri = subdivide(coord, nlevels)
 Q = quad(tri, f)
 xtable = zeros(T, nlevels, nlevels)
 xtable[:,1] = Q
-Δ = extrapolate!(xtable, 2)
+Δ = extrapolate!(xtable, 2, 2)
 
 @printf("Quadrature over subtriangles:\n\n")
 @printf("%5s  %8s  %14s  %6s\n\n", "level", "triangles", "Q[level]", "rate")
@@ -127,8 +127,8 @@ for level = 1:nlevels
 end
 
 @printf("\n\nExtrapolation table error rates:\n\n")
-for level = 1:nlevels
-    for col = 2:level
+for level = 2:nlevels
+    for col = 1:level-1
         ratio = (xtable[level-1,col] - ∫f) / (xtable[level,col] - ∫f)
         if ratio > 0
             rate = log2(ratio)

@@ -7,6 +7,7 @@ import ..Vec64, ..Mat64
 import ArgCheck: @argcheck
 import LinearAlgebra: dot, norm, mul!
 import JLD2: load, jldsave
+const AFloat = AbstractFloat
 
 """
     SPOD_points(s, path)
@@ -38,7 +39,7 @@ The iteration stops when the 2-norm of the relative residual is smaller than
 array must be `n×4`.
 """
 function pcg!(x::Vector{T}, A::AbstractMatrix{T}, b::Vector{T}, P, tol::T,
-        maxits::Integer, wkspace::Matrix{T}) where T <: AbstractFloat
+        maxits::Integer, wkspace::Matrix{T}) where T <: AFloat
     n = lastindex(x)
     @argcheck size(A) == (n, n)
     @argcheck size(b) == (n,)
@@ -87,9 +88,9 @@ with `Nᵢ = 2ⁱ⁻¹N₁`.  On exit, the extrapolated values satisfy
 
 and so on.
 """
-function extrapolate!(xtable::Matrix{Float64}, r::Int64, s::Int64)
+function extrapolate!(xtable::Matrix{T}, r::Int64, s::Int64) where T <: AFloat
     m, n = size(xtable)
-    correction = zeros(m-1,n-1)
+    correction = zeros(T, m-1,n-1)
     pow = 2^r
     for j = 2:n
         for i = j:m
@@ -107,9 +108,9 @@ end
 Computes the empirical convergence rates for the columns of the extrapolation
 table.
 """
-function check_rates(xtable::Matrix{Float64})
+function check_rates(xtable::Matrix{T}) where T <: AFloat
     m, n = size(xtable)
-    rate = zeros(m, n)
+    rate = zeros(T, m, n)
     for j = 1:n
         for i = j+1:m-1
             rate[i,j] = log2(( xtable[i,j] - xtable[i-1,j] ) 

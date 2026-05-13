@@ -30,21 +30,36 @@ end
 xtable = zeros(ngrids, ngrids)
 l = 4
 xtable[:,1] = EL[:,l]
+R = extrapolate!(xtable, 2, 2)
 
 @printf("\n\nExpected values of L before extrapolation, when N = %d\n\n",
         Nvals[l])
-
-for grid = 1:2
-    @printf("%2d & %8.4f & %8d & %14.10f & %8s \\\\\n", 
-            grid, FEM_h[grid], FEM_dof[grid], EL[grid,1], "")
+@printf("%2s & %8s & %8s & %14s & %6s & %14s & %6s\n\n",
+        "i", "h", "DoF", "L⁽ᴺ⁾ᵢ₁", "rate", "L⁽ᴺ⁾ᵢ₂", "rate")
+for grid = 1
+    @printf("%2d & %8.4f & %8d & %14.10f & %6s & %14s & %6s \\\\\n", 
+            grid, FEM_h[grid], FEM_dof[grid], EL[grid,1], "", "", "")
 end
-for grid = 3:ngrids
-    ratio = (EL[grid-2,1] - EL[grid-1,1]) / (EL[grid-1,1] - EL[grid,1])
-    @printf("%2d & %8.4f & %8d & %14.10f & %8.3f \\\\\n", 
-            grid, FEM_h[grid], FEM_dof[grid], EL[grid,1], log2(ratio))
+for grid = 2
+    @printf("%2d & %8.4f & %8d & %14.10f & %6s & %14.10f & %6s \\\\\n", 
+            grid, FEM_h[grid], FEM_dof[grid], EL[grid,1], "",
+            xtable[grid,2], "")
+end
+for grid = 3
+    ratio1 = (EL[grid-2,1] - EL[grid-1,1]) / (EL[grid-1,1] - EL[grid,1])
+    @printf("%2d & %8.4f & %8d & %14.10f & %6.3f & %14.10f & %6s \\\\\n", 
+            grid, FEM_h[grid], FEM_dof[grid], EL[grid,1], log2(ratio1), 
+            xtable[grid,2], "")
+end
+for grid = 4:ngrids
+    ratio1 = (EL[grid-2,1] - EL[grid-1,1]) / (EL[grid-1,1] - EL[grid,1])
+    ratio2 = ( (xtable[grid-2,2] - xtable[grid-1,2]) 
+             / (xtable[grid-1,2] - xtable[grid,2]) )
+    @printf("%2d & %8.4f & %8d & %14.10f & %6.3f & %14.10f & %6.3f \\\\\n", 
+            grid, FEM_h[grid], FEM_dof[grid], EL[grid,1], log2(ratio1), 
+            xtable[grid,2], log2(ratio2))
 end
 
-R = extrapolate!(xtable, 2, 2)
 @printf("\nExtrapolation corrections:\n\n")
 for row = 1:ngrids-1
     grid = row + 1

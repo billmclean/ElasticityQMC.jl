@@ -7,7 +7,7 @@ exno = 3
 #Λ = 1.0
 
 # Load already computed results
-ngrids = 5
+ngrids = 7
 QMC_levels = 6
 conforming_elements = false
 use_fft = false

@@ -5,9 +5,9 @@ using Printf
 using JLD2
 
 choices = (
-#           Λ = 1.0,
-           Λ = 1_000.0,
-           ngrids = 6,
+           Λ = 1.0,
+#           Λ = 1_000.0,
+           ngrids = 7,
            QMC_levels = 6,
            conforming_elements = false,
            mesh_order = 2,
@@ -84,7 +84,7 @@ for grid = 1:ngrids
     elapsed[grid] = time() - start
     @printf("%10.4f seconds\n", elapsed[grid])
 end
-@printf("\tDone!\n")
+@printf("\tDone!\nTotal runtime = %0.1f minutes\n", sum(elapsed)/60)
 
 exno = 3
 save_soln(exno, choices, L, elapsed, FEM_dof, FEM_h, Nvals)

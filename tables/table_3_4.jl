@@ -32,7 +32,8 @@ l = 4
 xtable[:,1] = EL[:,l]
 R = extrapolate!(xtable, 2, 2)
 
-@printf("\n\nExpected values of L before extrapolation, when N = %d\n\n",
+@printf("\n\nExpected values of L, before and after extrapolation, \
+        when N = %d\n\n",
         Nvals[l])
 @printf("%2s & %8s & %8s & %14s & %6s & %14s & %6s\n\n",
         "i", "h", "DoF", "L⁽ᴺ⁾ᵢ₁", "rate", "L⁽ᴺ⁾ᵢ₂", "rate")
